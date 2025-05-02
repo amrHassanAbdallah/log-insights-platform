@@ -21,6 +21,8 @@ For a detailed comparison of API design choices and implementation consideration
 ## System Requirements
 
 ### Functional Requirements
+For a detailed analysis of the functional requirements and implementation strategies, see [Functional Requirements Analysis](docs/FUNCTIONAL_REQ_ANALYSIS.md).
+
 1. **Data Ingestion**
    - Read structured logs from S3 bucket
    - Parse logs efficiently using batching/streaming
