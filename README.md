@@ -93,6 +93,7 @@ Role: Reads JSON logs from S3 and writes them to a database.
 	•	Transform & validate data
 	•	Bulk insert into database
 	•	One-step CLI script (npm run ingest)
+    • Easy to run and test locally with files...
 
 2. Database
 
@@ -101,7 +102,7 @@ Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
 	•	JSON column support for flexible schema
 	•	Easy local setup with Docker
 
-If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally or elastic search, needs a compairson based on our use cases..
+If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
 
 3. Backend API
 
@@ -140,19 +141,24 @@ For caching I believe queries related to the metrics should be cachable, however
 
 1. **Data Volume and Performance**
    - How to handle large log files efficiently?
+        From the looks of it, I'm assuming that all files are short 50 logs statement max as it seems to be 1 minute patched, however our app could be popular someday and when that happen maybe we will adjust it to make sure that it's a small chunk that could be consumed by our workers
    - What's the optimal batch size for ingestion?
+        I think around 100 logs statement would be enough
    - How to implement efficient querying for analytics?
+        This needs somethinking....
+        Well everytime we will add a new metrics it will require some sort of BE involvement to write the query for it...
+        Maybe we can store it's sql query somewhere and restore it based on the user demand but for the time being I'll hard code it to earn time.
+
    - which DB to use timescale, ES, lighthouse?
+        Since this is a prototype, I will go with postgress as it will support all features we need without complicatins, later on when the app scales we can move the searching to ES while aggregations to be done over timescale or other db
 
 2. **Scalability**
    - How to handle increasing data volume?
+        Message queues and S3 as well as retentions will do the trick
    - What's the best strategy for data retention?
+        Maybe move old and processed files into a cold storage
    - How to implement efficient caching?
-
-3. **User Experience**
-   - What metrics are most valuable to non-technical users?
-   - How to present complex data in an intuitive way?
-   - What's the right balance between detail and simplicity?
+        Most likely the place that would need caching the most would be the metrics side aka the aggregations, should we use redis or in memory? for the time being will go with in memory to deliever this task fast, should we go with pre calc aggregations or cache on demand? well, the easiest and more convent would be in demand and if we notice that it takes to much time and it's important to fit certin SLO then we will go with the pre-calc.
 
 ## Implementation Plan
 
