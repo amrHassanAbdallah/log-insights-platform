@@ -6,6 +6,18 @@ This system provides analytics and monitoring capabilities for the Deal Bot, a C
 My intial thoughts when drafting the design doc for this porblem is the below
 ![ELK](docs/elk.png)
 
+## Project Structure
+This project uses a monorepo structure to manage the backend, frontend, and ingestion service. For detailed information about the project structure and monorepo benefits, see [Project Structure](docs/PROJECT_STRUCTURE.md).
+
+## API Design
+The system uses GraphQL for its API, providing efficient data fetching and flexible querying capabilities. This choice enables:
+- Efficient multi-query support
+- Selective field fetching
+- Complex filtering for log search
+- Real-time updates via subscriptions
+
+For a detailed comparison of API design choices and implementation considerations, see [API Comparison](docs/API_COMPARISON.md).
+
 ## System Requirements
 
 ### Functional Requirements
@@ -101,6 +113,8 @@ Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
 	•	Analytical queries (group by day/week)
 	•	JSON column support for flexible schema
 	•	Easy local setup with Docker
+
+For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/database-comparison.md).
 
 If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
 
