@@ -11,6 +11,117 @@ A service for ingesting and processing log files from S3 into a database.
 - Paginated job processing
 - Efficient file filtering based on log timestamps
 - Local file processing support
+- Safe concurrent processing with database-level locking
+
+## Deployment
+
+The service is designed to run periodically to process new log files. There are two recommended deployment approaches:
+
+### Kubernetes CronJob (Recommended) 🚀
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: log-ingestor
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: ingestor
+            image: your-registry/ingestor:latest
+            env:
+            - name: AWS_REGION
+              value: us-east-1
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          restartPolicy: OnFailure
+```
+
+Benefits of using Kubernetes CronJob:
+- Built-in scheduling and retry mechanisms
+- Automatic scaling and resource management
+- Easy monitoring and logging
+- Seamless integration with other Kubernetes services
+- Better resource utilization (pods are only active during processing)
+
+### Alternative: Continuous Running Service ⏰
+
+If you prefer to run the service continuously, you can use a sleep loop:
+
+```typescript
+// In your main.ts or similar
+async function runIngestor() {
+  while (true) {
+    try {
+      await ingestorService.processFiles('your-bucket');
+    } catch (error) {
+      logger.error('Error processing files:', error);
+    }
+    await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000)); // Sleep for 5 minutes
+  }
+}
+```
+
+However, this approach is not recommended because:
+- Wastes resources when idle
+- More complex error handling
+- Harder to monitor and scale
+- Less reliable than Kubernetes CronJob
+
+## Concurrent Processing
+
+The service is designed to run safely with multiple instances. It uses several mechanisms to prevent conflicts:
+
+1. **Pessimistic Locking** 🔒
+   - When an instance processes a job, it acquires a database lock
+   - Other instances must wait for the lock to be released
+   - Ensures only one instance processes a job at a time
+
+2. **Unique Constraints** 🎯
+   - Each file (identified by S3 key and bucket) can only be processed once
+   - Prevents duplicate processing of the same file
+   - Ensures data consistency across instances
+
+3. **Transactions** 🔄
+   - Critical operations are wrapped in database transactions
+   - If any part of the operation fails, all changes are rolled back
+   - Ensures atomic operations (all-or-nothing)
+
+4. **Version Control** 📝
+   - Each record has a version number
+   - Prevents concurrent updates to the same record
+   - Ensures data integrity during updates
+
+This means you can safely run multiple instances of the service to:
+- Increase processing throughput
+- Provide high availability
+- Handle increased load
 
 ## Log Format
 

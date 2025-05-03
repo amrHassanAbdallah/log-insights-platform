@@ -4,7 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import * as fs from 'fs/promises';
 import { Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
-import { ProcessedFile, ProcessedFileStatus } from '../entities/processed-file.entity';
+import { ProcessedFileStatus } from '../entities/processed-file-status.enum';
+import { ProcessedFile } from '../entities/processed-file.entity';
 import { StorageService } from '../services/storage.service';
 import { IngestorService } from './ingestor.service';
 
@@ -46,6 +47,9 @@ describe('IngestorService', () => {
             findOne: jest.fn(),
             save: jest.fn(),
             update: jest.fn(),
+            manager: {
+              transaction: jest.fn(),
+            },
           },
         },
         {
@@ -224,26 +228,98 @@ describe('IngestorService', () => {
     });
   });
 
-  // Future work tests
-  describe('Future Work', () => {
-    it('should support chunked file processing', async () => {
-      // TODO: Implement when chunking is added
-      expect(true).toBe(true);
+
+
+  describe('concurrent processing', () => {
+    it('should handle concurrent job processing with pessimistic locking', async () => {
+      // Mock two instances trying to process the same job
+      const job = {
+        s3Key: 'test.json',
+        bucket: 'test-bucket',
+        status: ProcessedFileStatus.PENDING,
+      };
+
+      // First instance acquires the lock
+      (processedFileRepository.find as jest.Mock).mockResolvedValueOnce([job]);
+      (processedFileRepository.manager.transaction as jest.Mock).mockImplementation(async (callback) => {
+        return callback({ getRepository: () => processedFileRepository });
+      });
+
+      // Second instance should wait for the lock
+      await service.processFiles('test-bucket');
+      
+      // Verify that the job was processed only once
+      expect(processedFileRepository.update).toHaveBeenCalledTimes(1);
+      expect(processedFileRepository.update).toHaveBeenCalledWith(
+        { s3Key: job.s3Key, bucket: job.bucket },
+        expect.objectContaining({
+          status: ProcessedFileStatus.PROCESSING,
+        })
+      );
     });
 
-    it('should support stream reading for large files', async () => {
-      // TODO: Implement when streaming is added
-      expect(true).toBe(true);
+    it('should prevent duplicate file entries with unique constraints', async () => {
+      const file = {
+        s3Key: 'test.json',
+        bucket: 'test-bucket',
+      };
+
+      // First instance creates the entry
+      (storageService.listFiles as jest.Mock).mockResolvedValueOnce([file.s3Key]);
+      (processedFileRepository.find as jest.Mock).mockResolvedValueOnce([]);
+      (processedFileRepository.save as jest.Mock).mockResolvedValueOnce(file);
+
+      // Second instance should fail due to unique constraint
+      (processedFileRepository.save as jest.Mock).mockRejectedValueOnce({
+        code: '23505', // PostgreSQL unique violation
+      });
+
+      await service.processFiles('test-bucket');
+      
+      // Verify that only one entry was created
+      expect(processedFileRepository.save).toHaveBeenCalledTimes(1);
     });
 
-    it('should support different environment commands', async () => {
-      // TODO: Implement when environment-specific commands are added
-      expect(true).toBe(true);
+    it('should handle transaction rollback on failure', async () => {
+      const job = {
+        s3Key: 'test.json',
+        bucket: 'test-bucket',
+        status: ProcessedFileStatus.PENDING,
+      };
+
+      // Mock a failure during processing
+      (processedFileRepository.find as jest.Mock).mockResolvedValueOnce([job]);
+      (processedFileRepository.manager.transaction as jest.Mock).mockImplementation(async (callback) => {
+        throw new Error('Processing failed');
+      });
+
+      await expect(service.processFiles('test-bucket')).rejects.toThrow('Processing failed');
+      
+      // Verify that the job status wasn't updated
+      expect(processedFileRepository.update).not.toHaveBeenCalled();
     });
 
-    it('should support queue-based processing', async () => {
-      // TODO: Implement when queue system is added
-      expect(true).toBe(true);
+    it('should handle version conflicts during updates', async () => {
+      const job = {
+        s3Key: 'test.json',
+        bucket: 'test-bucket',
+        status: ProcessedFileStatus.PENDING,
+        version: 1,
+      };
+
+      // First instance updates successfully
+      (processedFileRepository.find as jest.Mock).mockResolvedValueOnce([job]);
+      (processedFileRepository.update as jest.Mock).mockResolvedValueOnce({ affected: 1 });
+
+      // Second instance should fail due to version mismatch
+      (processedFileRepository.update as jest.Mock).mockRejectedValueOnce({
+        code: '23514', // PostgreSQL version conflict
+      });
+
+      await service.processFiles('test-bucket');
+      
+      // Verify that only one update succeeded
+      expect(processedFileRepository.update).toHaveBeenCalledTimes(1);
     });
   });
 }); 

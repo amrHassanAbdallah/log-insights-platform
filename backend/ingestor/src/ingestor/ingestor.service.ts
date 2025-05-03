@@ -3,11 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs/promises';
 import { DeepPartial, In, LessThan, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
-import { ProcessedFile, ProcessedFileStatus } from '../entities/processed-file.entity';
+import { ProcessedFileStatus } from '../entities/processed-file-status.enum';
+import { ProcessedFile } from '../entities/processed-file.entity';
 import { StorageService } from '../services/storage.service';
 
 interface LogEntry {
-  level: number;
+  level: string;
   time: number;
   timestamp: string;
   pid: number;
@@ -34,7 +35,7 @@ interface LogEntry {
 @Injectable()
 export class IngestorService {
   private readonly logger = new Logger(IngestorService.name);
-  private readonly STUCK_JOB_TIMEOUT = 1 * 60 * 1000; // 1 minute in milliseconds
+  private readonly STUCK_JOB_TIMEOUT = 5 * 60 * 1000; // 1 minute in milliseconds
   private readonly PAGE_SIZE = 50; // Number of jobs to process per page
   private processedAnyJobs: boolean = false;
 
@@ -121,39 +122,48 @@ export class IngestorService {
   private async getPendingJobs(page: number): Promise<ProcessedFile[]> {
     const stuckTime = new Date(Date.now() - this.STUCK_JOB_TIMEOUT);
     
-    return await this.processedFileRepository.find({
-      where: [
-        {
-          status: ProcessedFileStatus.PENDING,
+    return await this.processedFileRepository.manager.transaction(async (manager) => {
+      const processedFileRepo = manager.getRepository(ProcessedFile);
+      
+      return await processedFileRepo.find({
+        where: [
+          {
+            status: ProcessedFileStatus.PENDING,
+          },
+          {
+            status: ProcessedFileStatus.PROCESSING,
+            processedAt: LessThan(stuckTime),
+          }
+        ],
+        order: {
+          createdAt: 'ASC', // Process oldest jobs first
         },
-        {
-          status: ProcessedFileStatus.PROCESSING,
-          processedAt: LessThan(stuckTime),
-        }
-      ],
-      order: {
-        createdAt: 'ASC', // Process oldest jobs first
-      },
-      skip: page * this.PAGE_SIZE,
-      take: this.PAGE_SIZE,
+        skip: page * this.PAGE_SIZE,
+        take: this.PAGE_SIZE,
+        lock: { mode: 'pessimistic_write' },
+      });
     });
   }
 
   private async markJobsAsProcessing(jobs: ProcessedFile[]): Promise<void> {
     if (jobs.length === 0) return;
 
-    await this.processedFileRepository.update(
-      { s3Key: In(jobs.map(job => job.s3Key)), bucket: In(jobs.map(job => job.bucket)) },
-      { 
-        status: ProcessedFileStatus.PROCESSING,
-        processedAt: new Date(),
-        updatedAt: new Date(),
-        metadata: {
-          ...jobs[0].metadata,
-          batchProcessedAt: new Date().toISOString(),
-        }
-      } as DeepPartial<ProcessedFile>
-    );
+    await this.processedFileRepository.manager.transaction(async (manager) => {
+      const processedFileRepo = manager.getRepository(ProcessedFile);
+      
+      await processedFileRepo.update(
+        { s3Key: In(jobs.map(job => job.s3Key)), bucket: In(jobs.map(job => job.bucket)) },
+        { 
+          status: ProcessedFileStatus.PROCESSING,
+          processedAt: new Date(),
+          updatedAt: new Date(),
+          metadata: {
+            ...jobs[0].metadata,
+            batchProcessedAt: new Date().toISOString(),
+          }
+        } as DeepPartial<ProcessedFile>
+      );
+    });
   }
 
   private async requeueStuckJobs(): Promise<void> {
@@ -301,12 +311,14 @@ export class IngestorService {
   private async processNewS3Files(bucket: string, prefix?: string): Promise<void> {
     try {
       // List files from S3
+      this.processedAnyJobs = true;
+
       const files = await this.storageService.listFiles(bucket, prefix);
       this.logger.log(`Found ${files.length} files in S3`);
 
       // Get the timestamp of the most recent log record
       const mostRecentLog = await this.logsRepository.findOne({
-        where: {}, // Empty where clause to get the most recent record
+        where: {},
         select: ["timestamp"],
         order: {
           timestamp: 'DESC',
@@ -336,54 +348,57 @@ export class IngestorService {
         });
         this.logger.log(`Found ${filteredFiles.length} files newer than last log timestamp ${lastLogTimestamp.toISOString()}`);
       }
-      //log the first 10 files
-      this.logger.log(`First 10 files: ${filteredFiles.slice(0, Math.min(10, filteredFiles.length)).join(', ')}`);
-      
 
-      // Find which files are already in the database
-      const existingFiles = await this.processedFileRepository.find({
-        where: {
-          s3Key: In(filteredFiles),
+      // Use a transaction to ensure atomic operations
+      await this.processedFileRepository.manager.transaction(async (manager) => {
+        const processedFileRepo = manager.getRepository(ProcessedFile);
+
+        // Find which files are already in the database
+        const existingFiles = await processedFileRepo.find({
+          where: {
+            s3Key: In(filteredFiles),
+            bucket,
+          },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        const existingFileMap = new Map(
+          existingFiles.map(file => [file.s3Key, file])
+        );
+
+        // Filter out files that are already processed
+        const newFiles = filteredFiles.filter(file => {
+          const existingFile = existingFileMap.get(file);
+          return !existingFile || 
+                 existingFile.status === ProcessedFileStatus.FAILED ||
+                 (existingFile.status === ProcessedFileStatus.PROCESSING && 
+                  new Date().getTime() - existingFile.processedAt.getTime() > this.STUCK_JOB_TIMEOUT);
+        });
+
+        if (newFiles.length === 0) {
+          this.logger.log('No new files to process');
+          return;
+        }
+
+        this.logger.log(`Found ${newFiles.length} new files to process`);
+
+        // Create entries for new files
+        const filesToCreate = newFiles.map(file => ({
+          s3Key: file,
           bucket,
-        },
+          status: ProcessedFileStatus.PENDING,
+          processedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
+
+        // Save new files to database
+        await processedFileRepo.save(filesToCreate);
+        this.logger.log(`Created ${filesToCreate.length} new file entries`);
       });
 
-      const existingFileMap = new Map(
-        existingFiles.map(file => [file.s3Key, file])
-      );
-
-      // Filter out files that are already processed
-      const newFiles = filteredFiles.filter(file => {
-        const existingFile = existingFileMap.get(file);
-        return !existingFile || 
-               existingFile.status === ProcessedFileStatus.FAILED ||
-               (existingFile.status === ProcessedFileStatus.PROCESSING && 
-                new Date().getTime() - existingFile.processedAt.getTime() > this.STUCK_JOB_TIMEOUT);
-      });
-
-      if (newFiles.length === 0) {
-        this.logger.log('No new files to process');
-        return;
-      }
-
-      this.logger.log(`Found ${newFiles.length} new files to process`);
-
-      // Create entries for new files
-      const filesToCreate = newFiles.map(file => ({
-        s3Key: file,
-        bucket,
-        status: ProcessedFileStatus.PENDING,
-        processedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-
-      // Save new files to database
-      await this.processedFileRepository.save(filesToCreate);
-      this.logger.log(`Created ${filesToCreate.length} new file entries`);
-      this.processedAnyJobs = true;
-      this.processFiles(bucket, prefix);
-      //todo should call the pending handling
+      // Process the newly created jobs
+      await this.processFiles(bucket, prefix);
     } catch (error) {
       this.logger.error(`Error processing new S3 files: ${error.message}`, error.stack);
       throw error;

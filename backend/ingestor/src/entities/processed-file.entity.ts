@@ -1,32 +1,36 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
-
-export enum ProcessedFileStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
-}
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, VersionColumn } from 'typeorm';
+import { ProcessedFileStatus } from './processed-file-status.enum';
 
 @Entity('processed_files')
 export class ProcessedFile {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true })
   s3Key: string;
 
   @Column()
   bucket: string;
 
-  @Column({ type: 'timestamp' })
-  processedAt: Date;
-
-  @Column({ type: 'enum', enum: ProcessedFileStatus, default: ProcessedFileStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ProcessedFileStatus,
+    default: ProcessedFileStatus.PENDING
+  })
   status: ProcessedFileStatus;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
+  processedAt: Date;
+
+  @Column('jsonb', { nullable: true })
   metadata: Record<string, any>;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @UpdateDateColumn()
   updatedAt: Date;
+
+  @VersionColumn({default: 0})
+  version: number;
 } 
