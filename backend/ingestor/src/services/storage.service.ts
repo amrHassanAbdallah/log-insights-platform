@@ -1,4 +1,4 @@
-import { GetObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Readable } from 'stream';
@@ -108,6 +108,27 @@ export class StorageService {
       return response.ContentLength || 0;
     } catch (error) {
       this.logger.error(`Error getting file size from S3: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getFileDetails(bucket: string, key: string): Promise<{ lastModified: Date }> {
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+      const response = await this.s3Client.send(command);
+
+      if (!response.LastModified) {
+        throw new Error(`No last modified date found for ${bucket}/${key}`);
+      }
+
+      return {
+        lastModified: response.LastModified,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting file details for ${bucket}/${key}: ${error.message}`);
       throw error;
     }
   }

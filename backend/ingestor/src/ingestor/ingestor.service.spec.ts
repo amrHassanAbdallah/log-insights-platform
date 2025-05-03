@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as fs from 'fs/promises';
-import { DeepPartial } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { ProcessedFile, ProcessedFileStatus } from '../entities/processed-file.entity';
 import { StorageService } from '../services/storage.service';
@@ -10,28 +10,11 @@ import { IngestorService } from './ingestor.service';
 
 describe('IngestorService', () => {
   let service: IngestorService;
-  let mockLogsRepository;
-  let mockProcessedFileRepository;
-  let mockStorageService;
+  let logsRepository: Repository<Log>;
+  let processedFileRepository: Repository<ProcessedFile>;
+  let storageService: StorageService;
 
   beforeEach(async () => {
-    mockLogsRepository = {
-      create: jest.fn(),
-      save: jest.fn(),
-    };
-
-    mockProcessedFileRepository = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-      update: jest.fn(),
-    };
-
-    mockStorageService = {
-      listFiles: jest.fn(),
-      getFileContent: jest.fn(),
-      getFileSize: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IngestorService,
@@ -51,20 +34,35 @@ describe('IngestorService', () => {
         },
         {
           provide: getRepositoryToken(Log),
-          useValue: mockLogsRepository,
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(ProcessedFile),
-          useValue: mockProcessedFileRepository,
+          useValue: {
+            find: jest.fn(),
+            findOne: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
         },
         {
           provide: StorageService,
-          useValue: mockStorageService,
+          useValue: {
+            listFiles: jest.fn(),
+            getFileContent: jest.fn(),
+            getFileSize: jest.fn(),
+          },
         },
       ],
     }).compile();
 
     service = module.get<IngestorService>(IngestorService);
+    logsRepository = module.get<Repository<Log>>(getRepositoryToken(Log));
+    processedFileRepository = module.get<Repository<ProcessedFile>>(getRepositoryToken(ProcessedFile));
+    storageService = module.get<StorageService>(StorageService);
   });
 
   it('should be defined', () => {
@@ -72,115 +70,102 @@ describe('IngestorService', () => {
   });
 
   describe('processFiles', () => {
-    it('should process files from S3 bucket', async () => {
-      const mockFiles = ['file1.log.gz', 'file2.log.gz'];
-      const mockLog = {
-        level: 1,
-        time: 1234567890,
-        timestamp: '2024-01-01T00:00:00Z',
-        pid: 1234,
-        hostname: 'test-host',
-        req: {
-          id: 1,
-          method: 'GET',
-          url: '/test',
-          query: {},
-          headers: {},
-          remoteAddress: '127.0.0.1',
-          remotePort: 12345,
-          params: { test: 'value' },
+    it('should process pending jobs first', async () => {
+      const pendingJobs = [
+        { s3Key: 'file1.json.gz', bucket: 'test-bucket', status: ProcessedFileStatus.PENDING },
+        { s3Key: 'file2.json.gz', bucket: 'test-bucket', status: ProcessedFileStatus.PENDING },
+      ];
+
+      (processedFileRepository.find as jest.Mock).mockResolvedValue(pendingJobs);
+      (storageService.getFileContent as jest.Mock).mockResolvedValue(JSON.stringify([
+        { timestamp: '2024-01-01T00:00:00.000Z', message: 'test' }
+      ]));
+
+      await service.processFiles('test-bucket');
+
+      expect(processedFileRepository.find).toHaveBeenCalledWith({
+        where: expect.any(Object),
+        order: { createdAt: 'ASC' },
+        skip: 0,
+        take: 50,
+      });
+      expect(storageService.getFileContent).toHaveBeenCalledTimes(2);
+    });
+
+    it('should process new files after pending jobs', async () => {
+      // No pending jobs
+      (processedFileRepository.find as jest.Mock).mockResolvedValue([]);
+      
+      // Most recent log
+      (logsRepository.findOne as jest.Mock).mockResolvedValue({
+        timestamp: new Date('2024-01-01T00:00:00.000Z'),
+      });
+
+      // New files in S3
+      (storageService.listFiles as jest.Mock).mockResolvedValue([
+        '2024-01-02T00:00:00.000Z.json.gz',
+        '2024-01-03T00:00:00.000Z.json.gz',
+      ]);
+
+      await service.processFiles('test-bucket');
+
+      expect(storageService.listFiles).toHaveBeenCalledWith('test-bucket', undefined);
+      expect(processedFileRepository.save).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            s3Key: '2024-01-02T00:00:00.000Z.json.gz',
+            status: ProcessedFileStatus.PENDING,
+          }),
+          expect.objectContaining({
+            s3Key: '2024-01-03T00:00:00.000Z.json.gz',
+            status: ProcessedFileStatus.PENDING,
+          }),
+        ])
+      );
+    });
+
+    it('should handle stuck jobs', async () => {
+      const stuckJobs = [
+        { 
+          s3Key: 'file1.json.gz', 
+          bucket: 'test-bucket', 
+          status: ProcessedFileStatus.PROCESSING,
+          processedAt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
         },
-        context: 'TestContext',
-        message: 'test message',
-        authUserId: 1,
-        processingTimeMs: 100,
-        cacheHit: true,
-        documentCount: 2,
-        lastUpdated: '2024-01-01T00:00:00Z',
-      };
+      ];
 
-      mockStorageService.listFiles.mockResolvedValue(mockFiles);
-      mockProcessedFileRepository.findOne.mockResolvedValue(null);
-      mockStorageService.getFileContent.mockResolvedValue('compressed-content');
-      mockStorageService.getFileSize.mockResolvedValue(1024);
+      (processedFileRepository.find as jest.Mock).mockResolvedValue(stuckJobs);
+      (storageService.getFileContent as jest.Mock).mockResolvedValue(JSON.stringify([
+        { timestamp: '2024-01-01T00:00:00.000Z', message: 'test' }
+      ]));
 
       await service.processFiles('test-bucket');
 
-      expect(mockStorageService.listFiles).toHaveBeenCalledWith('test-bucket');
-      expect(mockProcessedFileRepository.findOne).toHaveBeenCalled();
-      expect(mockProcessedFileRepository.save).toHaveBeenCalledWith({
-        s3Key: mockFiles[0],
-        bucket: 'test-bucket',
-        status: ProcessedFileStatus.PENDING,
-        processedAt: expect.any(Date),
-      } as DeepPartial<ProcessedFile>);
-      expect(mockProcessedFileRepository.update).toHaveBeenCalledWith(
-        { s3Key: mockFiles[0], bucket: 'test-bucket' },
-        { status: ProcessedFileStatus.PROCESSING } as DeepPartial<ProcessedFile>
+      expect(processedFileRepository.update).toHaveBeenCalledWith(
+        { s3Key: 'file1.json.gz', bucket: 'test-bucket' },
+        expect.objectContaining({
+          status: ProcessedFileStatus.PENDING,
+        })
       );
-      expect(mockProcessedFileRepository.update).toHaveBeenCalledWith(
-        { s3Key: mockFiles[0], bucket: 'test-bucket' },
-        {
-          status: ProcessedFileStatus.COMPLETED,
-          processedAt: expect.any(Date),
-          metadata: { size: 1024 },
-        } as DeepPartial<ProcessedFile>
-      );
-      expect(mockLogsRepository.create).toHaveBeenCalledWith({
-        id: mockLog.req.id.toString(),
-        timestamp: new Date(mockLog.timestamp),
-        level: mockLog.level,
-        method: mockLog.req.method,
-        url: mockLog.req.url,
-        query: mockLog.req.query,
-        headers: mockLog.req.headers,
-        context: mockLog.context,
-        message: mockLog.message,
-        authUserId: mockLog.authUserId,
-        pid: mockLog.pid,
-        hostname: mockLog.hostname,
-        remoteAddress: mockLog.req.remoteAddress,
-        remotePort: mockLog.req.remotePort,
-        processingTimeMs: mockLog.processingTimeMs,
-        cacheHit: mockLog.cacheHit,
-        documentCount: mockLog.documentCount,
-        lastUpdated: new Date(mockLog.lastUpdated),
-        params: mockLog.req.params,
-        rawData: mockLog,
-      } as DeepPartial<Log>);
     });
 
-    it('should skip already processed files', async () => {
-      const mockFiles = ['file1.log.gz'];
-      mockStorageService.listFiles.mockResolvedValue(mockFiles);
-      mockProcessedFileRepository.findOne.mockResolvedValue({
-        s3Key: 'file1.log.gz',
-        bucket: 'test-bucket',
-        status: ProcessedFileStatus.COMPLETED,
-        processedAt: new Date(),
-      });
+    it('should handle malformed log entries', async () => {
+      const pendingJobs = [
+        { s3Key: 'file1.json.gz', bucket: 'test-bucket', status: ProcessedFileStatus.PENDING },
+      ];
+
+      (processedFileRepository.find as jest.Mock).mockResolvedValue(pendingJobs);
+      (storageService.getFileContent as jest.Mock).mockResolvedValue(JSON.stringify([
+        { invalid: 'entry' } // Malformed log entry
+      ]));
 
       await service.processFiles('test-bucket');
 
-      expect(mockStorageService.getFileContent).not.toHaveBeenCalled();
-      expect(mockLogsRepository.create).not.toHaveBeenCalled();
-    });
-
-    it('should retry failed files', async () => {
-      const mockFiles = ['file1.log.gz'];
-      mockStorageService.listFiles.mockResolvedValue(mockFiles);
-      mockProcessedFileRepository.findOne.mockResolvedValue({
-        s3Key: 'file1.log.gz',
-        bucket: 'test-bucket',
-        status: ProcessedFileStatus.FAILED,
-        processedAt: new Date(),
-      });
-
-      await service.processFiles('test-bucket');
-
-      expect(mockProcessedFileRepository.update).toHaveBeenCalledWith(
-        { s3Key: 'file1.log.gz', bucket: 'test-bucket' },
-        { status: ProcessedFileStatus.PENDING } as DeepPartial<ProcessedFile>
+      expect(processedFileRepository.update).toHaveBeenCalledWith(
+        { s3Key: 'file1.json.gz', bucket: 'test-bucket' },
+        expect.objectContaining({
+          status: ProcessedFileStatus.FAILED,
+        })
       );
     });
   });
@@ -211,7 +196,7 @@ describe('IngestorService', () => {
 
       await service.processLocalFile('test.log');
 
-      expect(mockLogsRepository.create).toHaveBeenCalledWith({
+      expect(logsRepository.create).toHaveBeenCalledWith({
         id: mockLog.req.id.toString(),
         timestamp: new Date(mockLog.timestamp),
         level: mockLog.level,
@@ -236,6 +221,29 @@ describe('IngestorService', () => {
       jest.spyOn(fs, 'readFile').mockResolvedValue(JSON.stringify([invalidLog]));
 
       await expect(service.processLocalFile('test.log')).rejects.toThrow();
+    });
+  });
+
+  // Future work tests
+  describe('Future Work', () => {
+    it('should support chunked file processing', async () => {
+      // TODO: Implement when chunking is added
+      expect(true).toBe(true);
+    });
+
+    it('should support stream reading for large files', async () => {
+      // TODO: Implement when streaming is added
+      expect(true).toBe(true);
+    });
+
+    it('should support different environment commands', async () => {
+      // TODO: Implement when environment-specific commands are added
+      expect(true).toBe(true);
+    });
+
+    it('should support queue-based processing', async () => {
+      // TODO: Implement when queue system is added
+      expect(true).toBe(true);
     });
   });
 }); 

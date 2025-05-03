@@ -34,10 +34,9 @@ interface LogEntry {
 @Injectable()
 export class IngestorService {
   private readonly logger = new Logger(IngestorService.name);
-  private readonly processingQueue: { bucket: string; key: string }[] = [];
-  private readonly BATCH_SIZE = 100; // Process files in batches of 100
   private readonly STUCK_JOB_TIMEOUT = 1 * 60 * 1000; // 1 minute in milliseconds
   private readonly PAGE_SIZE = 50; // Number of jobs to process per page
+  private processedAnyJobs: boolean = false;
 
   constructor(
     @InjectRepository(Log)
@@ -47,7 +46,7 @@ export class IngestorService {
     private readonly storageService: StorageService,
   ) {}
 
-  async processFiles(bucket: string, prefix?: string): Promise<void> {
+  async processFiles(bucket: string, prefix?: string, afterDate?: Date): Promise<void> {
     try {
       // First, check for and requeue stuck jobs
       await this.requeueStuckJobs();
@@ -56,6 +55,7 @@ export class IngestorService {
       let page = 0;
       let hasMore = true;
 
+      // First, process any existing pending jobs
       while (hasMore) {
         const jobs = await this.getPendingJobs(page);
         if (jobs.length === 0) {
@@ -105,6 +105,12 @@ export class IngestorService {
         }
 
         page++;
+      }
+
+      // If no pending jobs were found, check S3 for new files
+      if (!this.processedAnyJobs) {
+        this.logger.log('No pending jobs found, checking S3 for new files...');
+        await this.processNewS3Files(bucket, prefix);
       }
     } catch (error) {
       this.logger.error(`Error processing files: ${error.message}`);
@@ -289,6 +295,98 @@ export class IngestorService {
         this.logger.debug('Failed log entry:', JSON.stringify(log, null, 2));
         // Continue processing other logs even if one fails
       }
+    }
+  }
+
+  private async processNewS3Files(bucket: string, prefix?: string): Promise<void> {
+    try {
+      // List files from S3
+      const files = await this.storageService.listFiles(bucket, prefix);
+      this.logger.log(`Found ${files.length} files in S3`);
+
+      // Get the timestamp of the most recent log record
+      const mostRecentLog = await this.logsRepository.findOne({
+        where: {}, // Empty where clause to get the most recent record
+        select: ["timestamp"],
+        order: {
+          timestamp: 'DESC',
+        },
+      });
+      this.logger.log(`Most recent log timestamp: ${mostRecentLog?.timestamp}`);
+
+      // Extract date from file key (format: YYYY-MM-DDTHH:mm:ss.SSSZ)
+      const extractDateFromKey = (key: string): Date | null => {
+        try {
+          const dateStr = key.split('/').pop()?.split('.')[0];
+          if (!dateStr) return null;
+          return new Date(dateStr);
+        } catch (error) {
+          this.logger.warn(`Could not extract date from key: ${key}`);
+          return null;
+        }
+      };
+
+      // Filter files by date
+      let filteredFiles = files;
+      if (mostRecentLog) {
+        const lastLogTimestamp = mostRecentLog.timestamp;
+        filteredFiles = files.filter(file => {
+          const fileDate = extractDateFromKey(file);
+          return fileDate && fileDate > lastLogTimestamp;
+        });
+        this.logger.log(`Found ${filteredFiles.length} files newer than last log timestamp ${lastLogTimestamp.toISOString()}`);
+      }
+      //log the first 10 files
+      this.logger.log(`First 10 files: ${filteredFiles.slice(0, Math.min(10, filteredFiles.length)).join(', ')}`);
+      
+
+      // Find which files are already in the database
+      const existingFiles = await this.processedFileRepository.find({
+        where: {
+          s3Key: In(filteredFiles),
+          bucket,
+        },
+      });
+
+      const existingFileMap = new Map(
+        existingFiles.map(file => [file.s3Key, file])
+      );
+
+      // Filter out files that are already processed
+      const newFiles = filteredFiles.filter(file => {
+        const existingFile = existingFileMap.get(file);
+        return !existingFile || 
+               existingFile.status === ProcessedFileStatus.FAILED ||
+               (existingFile.status === ProcessedFileStatus.PROCESSING && 
+                new Date().getTime() - existingFile.processedAt.getTime() > this.STUCK_JOB_TIMEOUT);
+      });
+
+      if (newFiles.length === 0) {
+        this.logger.log('No new files to process');
+        return;
+      }
+
+      this.logger.log(`Found ${newFiles.length} new files to process`);
+
+      // Create entries for new files
+      const filesToCreate = newFiles.map(file => ({
+        s3Key: file,
+        bucket,
+        status: ProcessedFileStatus.PENDING,
+        processedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      // Save new files to database
+      await this.processedFileRepository.save(filesToCreate);
+      this.logger.log(`Created ${filesToCreate.length} new file entries`);
+      this.processedAnyJobs = true;
+      this.processFiles(bucket, prefix);
+      //todo should call the pending handling
+    } catch (error) {
+      this.logger.error(`Error processing new S3 files: ${error.message}`, error.stack);
+      throw error;
     }
   }
 }

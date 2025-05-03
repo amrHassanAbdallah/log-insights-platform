@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages:/usr/src/app/packages
+      - /usr/src/app/packages/api/node_modules
+      - /usr/src/app/packages/shared/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/dealbot
+    depends_on:
+      - timescaledb
+    networks:
+      - app-network
+
+  ingestor:
+    build:
+      context: .
+      dockerfile: packages/ingestor/Dockerfile
+    volumes:
+      - ./packages:/usr/src/app/packages
+      - /usr/src/app/packages/ingestor/node_modules
+      - /usr/src/app/packages/shared/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/dealbot
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - AWS_S3_KEY=${AWS_S3_KEY}
+    depends_on:
+      - timescaledb
+    networks:
+      - app-network
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dealbot
+      - TIMESCALEDB_TELEMETRY=off
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://timescaledb:5432/sonarqube
+      - SONAR_JDBC_USERNAME=postgres
+      - SONAR_JDBC_PASSWORD=postgres
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  timescaledb_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+networks:
+  app-network:
+    driver: bridge 

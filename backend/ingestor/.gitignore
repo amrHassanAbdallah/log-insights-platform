@@ -3,6 +3,8 @@
 /node_modules
 /build
 
+/scripts/s3_data/
+
 # Logs
 logs
 *.log

@@ -1,8 +1,18 @@
-# Deal Bot Ingestor Service
+# Ingestor Service
 
-This service processes log events from SQS messages containing S3 bucket notifications about new log files. The log files are in gzip-compressed JSON format and are persisted to a TimescaleDB database.
+A service for ingesting and processing log files from S3 into a database.
 
-## Data Format
+## Features
+
+- Process log files from S3 buckets
+- Support for gzipped JSON log files
+- Automatic retry for failed files
+- Stuck job detection and recovery
+- Paginated job processing
+- Efficient file filtering based on log timestamps
+- Local file processing support
+
+## Log Format
 
 The service expects JSON files with the following structure:
 
@@ -11,116 +21,163 @@ The service expects JSON files with the following structure:
   {
     "level": 30,
     "time": 1743532441581,
-    "timestamp": "2025-04-01T18:34:01.581Z",
+    "timestamp": "2024-01-01T00:00:00.000Z",
     "pid": 46,
-    "hostname": "75915b60-c2beffba-b9de-4b",
+    "hostname": "server-1",
     "req": {
       "id": 3558,
       "method": "GET",
-      "url": "/deals",
+      "url": "/api/endpoint",
       "query": {},
       "headers": {
         "x-forwarded-for": "184.182.215.20",
         "x-forwarded-proto": "https",
         "x-forwarded-port": "443",
-        "host": "cur8-api.pub.islamicfinanceguru.dev",
-        "x-amzn-trace-id": "Root=1-36ec6b44-66b2bbac-c4fd-41e3b063b5",
-        "user-agent": "Cur8Mobile/2.2.9 (iOS 16.4)",
-        "cookie": "auth_user_id=1102; access_token=f1406962-e38c-4cbe-a5cf-a5b76707fe4d; refresh_token=7a9be37d-4640-4d4b-bfbb-326eb622afb5"
+        "host": "api.example.com",
+        "user-agent": "Mozilla/5.0"
       },
       "remoteAddress": "::ffff:10.0.236.240",
       "remotePort": 19250
     },
     "context": "ApiController",
-    "message": "Processing GET request for /deals",
-    "authUserId": 1102
+    "message": "Processing GET request",
+    "authUserId": 1102,
+    "processingTimeMs": 100,
+    "cacheHit": true,
+    "documentCount": 2,
+    "lastUpdated": "2024-01-01T00:00:00.000Z"
   }
 ]
 ```
 
-## Local Development
+## Persistence
 
-1. Start the required services:
-```bash
-docker-compose up -d
+Logs are persisted to the database with the following schema:
+
+```typescript
+interface Log {
+  id: string;                    // Generated from req.id or random
+  timestamp: Date;               // From log.timestamp
+  level: string;                 // From log.level
+  method: string;                // From log.req.method
+  url: string;                   // From log.req.url
+  query: Record<string, any>;    // From log.req.query
+  headers: Record<string, string>; // From log.req.headers
+  context: string;               // From log.context
+  message: string;               // From log.message
+  authUserId: number;            // From log.authUserId
+  pid: number;                   // From log.pid
+  hostname: string;              // From log.hostname
+  remoteAddress: string;         // From log.req.remoteAddress
+  remotePort: number;            // From log.req.remotePort
+  processingTimeMs: number;      // From log.processingTimeMs
+  cacheHit: boolean;             // From log.cacheHit
+  documentCount: number;         // From log.documentCount
+  lastUpdated: Date;             // From log.lastUpdated
+  params: Record<string, any>;   // From log.req.params
+  rawData: any;                  // Complete original log entry
+  createdAt: Date;               // When the record was created
+  updatedAt: Date;               // When the record was last updated
+}
 ```
 
-2. Install dependencies:
-```bash
-npm install
+Processed files are tracked with:
+
+```typescript
+interface ProcessedFile {
+  s3Key: string;                // S3 object key
+  bucket: string;               // S3 bucket name
+  status: ProcessedFileStatus;  // PENDING, PROCESSING, COMPLETED, FAILED
+  processedAt: Date;            // When the file was processed
+  createdAt: Date;              // When the record was created
+  updatedAt: Date;              // When the record was last updated
+  metadata: {
+    size?: number;              // File size in bytes
+    error?: string;             // Error message if failed
+    lastAttempt?: Date;         // Last processing attempt
+  };
+}
 ```
 
-3. Run the service in SQS mode:
-```bash
-npm run start:dev
+## Processing Flow
+
+1. First checks for and processes any pending jobs
+2. If no pending jobs, checks S3 for new files
+3. Filters files based on the most recent log timestamp
+4. Processes files in chronological order
+5. Updates job status and metadata throughout processing
+
+## Configuration
+
+```typescript
+// Environment Variables
+AWS_REGION=us-east-1
+AWS_ENDPOINT=http://localhost:4566  // For local development
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
 ```
 
-4. Run the service with a local file:
-```bash
-npm run start:local
+## Usage
+
+```typescript
+// Process files from S3
+await ingestorService.processFiles('my-bucket', 'my-prefix');
+
+// Process local file
+await ingestorService.processLocalFile('path/to/file.json');
 ```
 
-## Testing
+## Future Work
 
-Run the test suite:
-```bash
-npm test
-```
+### High Priority
+- [ ] Implement chunked file processing for large files
+- [ ] Add streaming support for memory-efficient processing
+- [ ] Replace database with message queue for better scalability
+- [ ] Add environment-specific commands and configurations
 
-## Environment Variables
+### Medium Priority
+- [ ] Add metrics and monitoring
+- [ ] Implement rate limiting
+- [ ] Add support for different log formats
+- [ ] Add support for custom log processors
 
-- `AWS_REGION`: AWS region (default: us-east-1)
-- `AWS_ENDPOINT`: AWS endpoint (default: http://localhost:4566 for localstack)
-- `AWS_ACCESS_KEY_ID`: AWS access key
-- `AWS_SECRET_ACCESS_KEY`: AWS secret key
-- `AWS_SQS_QUEUE_URL`: SQS queue URL for receiving S3 notifications
-- `LOCAL_FILE_PATH`: Path to a local JSON file for testing (optional)
-- `DB_HOST`: Database host (default: localhost)
-- `DB_PORT`: Database port (default: 5432)
-- `DB_USERNAME`: Database username (default: postgres)
-- `DB_PASSWORD`: Database password (default: postgres)
-- `DB_DATABASE`: Database name (default: dealbot)
+### Low Priority
+- [ ] Add support for different storage backends
+- [ ] Add support for different database backends
+- [ ] Add support for different queue backends
+- [ ] Add support for different log formats
 
-## Local Testing with LocalStack
+## Development
 
-1. Create a test bucket:
-```bash
-aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
-```
+### Setup
+1. Install dependencies: `npm install`
+2. Start local services: `docker-compose -f docker-compose.dev.yml up -d`
+3. Run tests: `npm test`
 
-2. Create a test SQS queue:
-```bash
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name test-queue
-```
+### Testing
+- Unit tests: `npm test`
+- Integration tests: `npm run test:integration`
+- E2E tests: `npm run test:e2e`
 
-3. Configure S3 to send notifications to SQS:
-```bash
-aws --endpoint-url=http://localhost:4566 s3api put-bucket-notification-configuration \
-  --bucket test-bucket \
-  --notification-configuration '{
-    "QueueConfigurations": [
-      {
-        "QueueArn": "arn:aws:sqs:us-east-1:000000000000:test-queue",
-        "Events": ["s3:ObjectCreated:*"]
-      }
-    ]
-  }'
-```
+## Architecture
 
-4. Upload a test file:
-```bash
-aws --endpoint-url=http://localhost:4566 s3 cp test.json.gz s3://test-bucket/
-```
+### Components
+- `IngestorService`: Main service for processing files
+- `StorageService`: Handles S3 operations
+- `Log`: Entity for storing log entries
+- `ProcessedFile`: Entity for tracking processed files
 
-## Database Schema
+### Data Flow
+1. Files are listed from S3
+2. Files are filtered based on last processed log timestamp
+3. Files are processed in chronological order
+4. Logs are saved to database
+5. File status is updated
 
-The service uses TimescaleDB with the following schema:
+## Contributing
 
-```sql
-CREATE TABLE deals (
-    id VARCHAR(255) PRIMARY KEY,
-    timestamp TIMESTAMP NOT NULL,
-    type VARCHAR(255) NOT NULL,
-    data JSONB
-);
-``` 
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request 
