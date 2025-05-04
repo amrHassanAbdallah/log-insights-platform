@@ -245,6 +245,10 @@ await ingestorService.processLocalFile('path/to/file.json');
 - [ ] Add streaming support for memory-efficient processing
 - [ ] Replace database with message queue for better scalability
 - [ ] Add environment-specific commands and configurations
+- [ ] revist the concurrency and locking over read
+- [ ] TODO# gave it another testing with empty state
+- [ ] TODO# gave it another testing with new records
+
 
 ### Medium Priority
 - [ ] Add metrics and monitoring

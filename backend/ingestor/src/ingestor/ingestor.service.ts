@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs/promises';
 import { DeepPartial, In, LessThan, Repository } from 'typeorm';
@@ -35,8 +35,8 @@ interface LogEntry {
 @Injectable()
 export class IngestorService {
   private readonly logger = new Logger(IngestorService.name);
-  private readonly STUCK_JOB_TIMEOUT = 5 * 60 * 1000; // 1 minute in milliseconds
-  private readonly PAGE_SIZE = 50; // Number of jobs to process per page
+  private readonly stuckTimeout: number;
+  private readonly pageSize: number;
   private processedAnyJobs: boolean = false;
 
   constructor(
@@ -45,7 +45,12 @@ export class IngestorService {
     @InjectRepository(ProcessedFile)
     private readonly processedFileRepository: Repository<ProcessedFile>,
     private readonly storageService: StorageService,
-  ) {}
+    @Inject('INGESTOR_CONFIG')
+    private readonly config: { stuckTimeout?: number; pageSize?: number } = {}
+  ) {
+    this.stuckTimeout = config.stuckTimeout || 5 * 60 * 1000; // Default 5 minutes
+    this.pageSize = config.pageSize || 50; // Default 50 items per page
+  }
 
   async processFiles(bucket: string, prefix?: string, afterDate?: Date): Promise<void> {
     try {
@@ -120,7 +125,7 @@ export class IngestorService {
   }
 
   private async getPendingJobs(page: number): Promise<ProcessedFile[]> {
-    const stuckTime = new Date(Date.now() - this.STUCK_JOB_TIMEOUT);
+    const stuckTime = new Date(Date.now() - this.stuckTimeout);
     
     return await this.processedFileRepository.manager.transaction(async (manager) => {
       const processedFileRepo = manager.getRepository(ProcessedFile);
@@ -138,8 +143,8 @@ export class IngestorService {
         order: {
           createdAt: 'ASC', // Process oldest jobs first
         },
-        skip: page * this.PAGE_SIZE,
-        take: this.PAGE_SIZE,
+        skip: page * this.pageSize,
+        take: this.pageSize,
         lock: { mode: 'pessimistic_write' },
       });
     });
@@ -169,7 +174,7 @@ export class IngestorService {
   private async requeueStuckJobs(): Promise<void> {
     try {
       this.logger.log('Checking for stuck jobs...');
-      const stuckTime = new Date(Date.now() - this.STUCK_JOB_TIMEOUT);
+      const stuckTime = new Date(Date.now() - this.stuckTimeout);
       
       // Find all jobs that are stuck in PROCESSING state for more than 1 minute
       const stuckJobs = await this.processedFileRepository.find({
@@ -372,7 +377,7 @@ export class IngestorService {
           return !existingFile || 
                  existingFile.status === ProcessedFileStatus.FAILED ||
                  (existingFile.status === ProcessedFileStatus.PROCESSING && 
-                  new Date().getTime() - existingFile.processedAt.getTime() > this.STUCK_JOB_TIMEOUT);
+                  new Date().getTime() - existingFile.processedAt.getTime() > this.stuckTimeout);
         });
 
         if (newFiles.length === 0) {
