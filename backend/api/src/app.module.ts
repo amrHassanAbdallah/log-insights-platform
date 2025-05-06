@@ -5,7 +5,6 @@ import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import compression from 'compression';
 import helmet from 'helmet';
 import { ErrorHandlerMiddleware } from './common/middleware/error-handler.middleware';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
@@ -58,6 +57,6 @@ import { MetricsModule } from './metrics/metrics.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(helmet(), compression()).forRoutes('*');
+    consumer.apply(helmet()).forRoutes('*');
   }
 }

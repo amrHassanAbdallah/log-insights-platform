@@ -13,7 +13,7 @@ export class MetricsResolver {
   @Version('1')
   @Query(() => MetricResult)
   @UsePipes(new ValidationPipe())
-  async getMetrics(@Args() query: MetricQueryDto): Promise<MetricResult> {
+  async getMetrics(@Args('query') query: MetricQueryDto): Promise<MetricResult> {
     return this.metricsService.getMetrics(query);
   }
 }

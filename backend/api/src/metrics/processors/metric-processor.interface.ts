@@ -1,7 +1,7 @@
-import { MetricQuery, MetricResult, MetricType } from '../types/metric.types';
+import { MetricType } from '../types/metric.enums';
+import { MetricQuery, MetricResult } from '../types/metric.types';
 
 export interface IMetricProcessor {
-  type: MetricType;
-  process(query: MetricQuery): Promise<MetricResult>;
   supports(type: MetricType): boolean;
+  process(query: MetricQuery): Promise<MetricResult>;
 }

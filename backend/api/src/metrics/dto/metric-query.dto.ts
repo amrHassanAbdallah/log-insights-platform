@@ -7,11 +7,8 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import {
-  AggregationType,
-  MetricResolution,
-  MetricType,
-} from '../types/metric.types';
+import { MetricType } from '../types/metric.enums';
+import { MetricResolution } from '../types/metric.types';
 
 @InputType('PaginationParams')
 export class PaginationParams {
@@ -52,11 +49,6 @@ export class MetricQueryDto {
   @Field(() => MetricResolution)
   @IsEnum(MetricResolution)
   resolution: MetricResolution;
-
-  @Field(() => AggregationType, { nullable: true })
-  @IsOptional()
-  @IsEnum(AggregationType)
-  aggregation?: AggregationType;
 
   @Field()
   @IsDate()

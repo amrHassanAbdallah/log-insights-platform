@@ -1,105 +1,179 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { SelectQueryBuilder } from 'typeorm';
+import { Log } from '@/log/entities/log.entity';
+import { MetricType } from '../types/metric.enums';
 import {
-  AggregationType,
   FilterCondition,
   FilterField,
   FilterOperator,
   MetricQuery,
   MetricResult,
-  MetricType,
-  MetricValue,
 } from '../types/metric.types';
 import { IMetricProcessor } from './metric-processor.interface';
-import { Log } from '../entities/log.entity';
+import { LogService } from '@/log/services/log.service';
 
-interface RawLogData {
-  timestamp: string;
-  value: string;
-}
-
-interface RawAggregatedData {
-  value: string;
-}
-
+/**
+ * Base class for metric processors that provides common functionality for querying and filtering logs.
+ *
+ * This class implements the core functionality needed by all metric processors:
+ * - Date range filtering
+ * - Custom field filtering
+ * - Pagination
+ * - Time bucket resolution
+ *
+ * Extend this class to create specific metric processors (e.g., ResponseTimeProcessor, QueryCountProcessor).
+ *
+ * @example
+ * ```typescript
+ * @Injectable()
+ * class CustomMetricProcessor extends BaseMetricProcessor {
+ *   supports(type: MetricType): boolean {
+ *     return type === MetricType.SUMMARY;
+ *   }
+ *
+ *   async process(query: MetricQuery): Promise<MetricResult> {
+ *     const baseQuery = this.createBaseQuery();
+ *     // Add your specific query logic here
+ *     const results = await this.applyCommonFilters(baseQuery, query).getMany();
+ *     // Process results and return
+ *   }
+ * }
+ * ```
+ */
 @Injectable()
 export abstract class BaseMetricProcessor implements IMetricProcessor {
-  constructor(
-    @InjectRepository(Log) protected readonly logRepository: Repository<Log>,
+  protected constructor(
+     protected readonly logService: LogService,
   ) {}
 
-  abstract type: MetricType;
+  /**
+   * Determines if this processor supports the given metric type.
+   * @param type - The metric type to check
+   * @returns true if this processor can handle the given type
+   */
+  abstract supports(type: MetricType): boolean;
+
+  /**
+   * Processes the metric query and returns the results.
+   * @param query - The metric query containing filters, date range, and pagination
+   * @returns A promise resolving to the metric results
+   */
   abstract process(query: MetricQuery): Promise<MetricResult>;
 
-  supports(type: MetricType): boolean {
-    return this.type === type;
+  /**
+   * Creates a base query builder with common configurations.
+   * @returns A configured query builder
+   */
+  protected createBaseQuery(): SelectQueryBuilder<Log> {
+    return this.logService.createQueryBuilder();
   }
 
-  protected async getTimeSeriesData(
+  /**
+   * Applies common filters to a query (date range, custom filters, pagination, sorting).
+   * @param queryBuilder - The query builder to modify
+   * @param query - The metric query containing filters
+   * @returns The modified query builder
+   */
+  protected applyCommonFilters(
+    queryBuilder: SelectQueryBuilder<Log>,
     query: MetricQuery,
-  ): Promise<{ values: MetricValue[]; aggregatedValue?: number }> {
-    const { resolution, startDate, endDate, filters, aggregation } = query;
-    const timeBucket = this.getTimeBucket(resolution);
+  ): SelectQueryBuilder<Log> {
+    // Apply date range filter if provided
+    if (query.startDate && query.endDate) {
+      queryBuilder.where('log.timestamp BETWEEN :startDate AND :endDate', {
+        startDate: query.startDate,
+        endDate: query.endDate,
+      });
+    }
 
-    // Query logs table with aggregation
-    const logDataQuery = this.logRepository
-      .createQueryBuilder('log')
-      .select(
-        `DATE_TRUNC('${timeBucket}', log.timestamp) as timestamp, COUNT(*) as value`,
-      )
-      .where('log.timestamp BETWEEN :startDate AND :endDate', {
+    // Apply additional filters if provided
+    if (query.filters && query.filters.length > 0) {
+      query.filters.forEach((filter, index) => {
+        const condition = this.buildFilterCondition(filter, index);
+        queryBuilder.andWhere(condition.sql, condition.parameters);
+      });
+    }
+
+    // Apply sorting
+    const sort = query.sort || { field: 'timestamp', order: 'DESC' };
+    queryBuilder.orderBy(`log.${sort.field}`, sort.order);
+
+    // Apply pagination if no date range is provided
+    if (!query.startDate || !query.endDate) {
+      const { limit = 10, offset = 0 } = query.pagination || {};
+      queryBuilder.skip(offset).take(limit);
+    }
+
+    return queryBuilder;
+  }
+
+  /**
+   * Converts a resolution string to a time bucket unit for SQL queries.
+   * @param resolution - The resolution string (HOUR, DAY, WEEK, MONTH)
+   * @returns The corresponding time bucket unit
+   */
+  protected getTimeBucket(resolution?: string): string {
+    switch (resolution) {
+      case 'HOUR':
+        return 'hour';
+      case 'DAY':
+        return 'day';
+      case 'WEEK':
+        return 'week';
+      case 'MONTH':
+        return 'month';
+      default:
+        return 'day';
+    }
+  }
+
+  /**
+   * Retrieves time series data based on the provided query parameters.
+   * Applies date range filtering, custom filters, and pagination.
+   *
+   * @param query - The metric query containing filters and pagination
+   * @returns A promise resolving to an array of logs matching the query
+   *
+   * @example
+   * ```typescript
+   * // Query with date range and filters
+   * const logs = await this.getTimeSeriesData({
+   *   startDate: new Date('2024-01-01'),
+   *   endDate: new Date('2024-01-31'),
+   *   filters: [{
+   *     field: FilterField.INTENT,
+   *     operator: FilterOperator.EQUALS,
+   *     value: 'greeting'
+   *   }]
+   * });
+   * ```
+   */
+  protected async getTimeSeriesData(query: MetricQuery): Promise<Log[]> {
+    const { startDate, endDate, pagination, filters } = query;
+    const queryBuilder = this.logService.createQueryBuilder();
+
+    // Apply date range filter if provided
+    if (startDate && endDate) {
+      queryBuilder.where('log.timestamp BETWEEN :startDate AND :endDate', {
         startDate,
         endDate,
       });
+    }
 
-    // Apply filters to the query
+    // Apply additional filters if provided
     if (filters && filters.length > 0) {
       filters.forEach((filter, index) => {
         const condition = this.buildFilterCondition(filter, index);
-        logDataQuery.andWhere(condition.sql, condition.parameters);
+        queryBuilder.andWhere(condition.sql, condition.parameters);
       });
     }
 
-    const logData = await logDataQuery
-      .groupBy(`DATE_TRUNC('${timeBucket}', log.timestamp)`)
-      .orderBy('timestamp', 'ASC')
-      .getRawMany<RawLogData>();
+    // Always apply pagination
+    const { limit = 10, offset = 0 } = pagination || {};
+    queryBuilder.skip(offset).take(limit);
 
-    const values = logData.map((item) => ({
-      timestamp: new Date(item.timestamp),
-      value: parseInt(item.value),
-    }));
-
-    // If aggregation is specified, calculate the aggregated value
-    if (aggregation) {
-      const aggregationSql = this.getAggregationSql(aggregation);
-      const aggregatedQuery = this.logRepository
-        .createQueryBuilder('log')
-        .select(aggregationSql)
-        .where('log.timestamp BETWEEN :startDate AND :endDate', {
-          startDate,
-          endDate,
-        });
-
-      if (filters && filters.length > 0) {
-        filters.forEach((filter, index) => {
-          const condition = this.buildFilterCondition(filter, index);
-          aggregatedQuery.andWhere(condition.sql, condition.parameters);
-        });
-      }
-
-      const aggregatedResult =
-        await aggregatedQuery.getRawOne<RawAggregatedData>();
-      return {
-        values,
-        aggregatedValue: aggregatedResult
-          ? parseFloat(aggregatedResult.value)
-          : undefined,
-      };
-    }
-
-    return { values };
+    return queryBuilder.getMany();
   }
 
   protected calculatePercentiles(
@@ -118,51 +192,13 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     return result;
   }
 
-  protected getTimeBucket(resolution: string): string {
-    switch (resolution) {
-      case 'SECOND':
-        return 'second';
-      case 'MINUTE':
-        return 'minute';
-      case 'HOUR':
-        return 'hour';
-      case 'DAY':
-        return 'day';
-      case 'WEEK':
-        return 'week';
-      case 'MONTH':
-        return 'month';
-      default:
-        return 'day';
-    }
-  }
-
-  private getAggregationSql(aggregation: AggregationType): string {
-    switch (aggregation) {
-      case AggregationType.COUNT:
-        return 'COUNT(*) as value';
-      case AggregationType.SUM:
-        return "SUM(CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.AVG:
-        return "AVG(CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.MIN:
-        return "MIN(CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.MAX:
-        return "MAX(CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.P50:
-        return "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.P90:
-        return "PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.P95:
-        return "PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CAST(log.query->>'value' AS FLOAT)) as value";
-      case AggregationType.P99:
-        return "PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY CAST(log.query->>'value' AS FLOAT)) as value";
-      default:
-        return 'COUNT(*) as value';
-    }
-  }
-
-  private buildFilterCondition(
+  /**
+   * Builds a SQL condition for a filter.
+   * @param filter - The filter condition
+   * @param index - The index of the filter (used for parameter naming)
+   * @returns An object containing the SQL condition and parameters
+   */
+  protected buildFilterCondition(
     filter: FilterCondition,
     index: number,
   ): { sql: string; parameters: Record<string, string> } {
@@ -178,7 +214,12 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     };
   }
 
-  private getFilterField(field: FilterField): string {
+  /**
+   * Gets the SQL field name for a filter field.
+   * @param field - The filter field
+   * @returns The corresponding SQL field name
+   */
+  protected getFilterField(field: FilterField): string {
     switch (field) {
       case FilterField.MESSAGE:
         return 'log.message';
@@ -187,15 +228,20 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
       case FilterField.CONTEXT:
         return 'log.context';
       case FilterField.INTENT:
-        return 'log.intent';
+        return "log.query->>'intent'";
       case FilterField.TOPIC:
-        return 'log.topic';
+        return "log.query->>'topic'";
       default:
         return 'log.message';
     }
   }
 
-  private getFilterOperator(operator: FilterOperator): string {
+  /**
+   * Gets the SQL operator for a filter operator.
+   * @param operator - The filter operator
+   * @returns The corresponding SQL operator
+   */
+  protected getFilterOperator(operator: FilterOperator): string {
     switch (operator) {
       case FilterOperator.EQUALS:
         return '=';
@@ -210,7 +256,13 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     }
   }
 
-  private getFilterValue(value: string, operator: FilterOperator): string {
+  /**
+   * Gets the SQL value for a filter value based on the operator.
+   * @param value - The filter value
+   * @param operator - The filter operator
+   * @returns The formatted SQL value
+   */
+  protected getFilterValue(value: string, operator: FilterOperator): string {
     switch (operator) {
       case FilterOperator.CONTAINS:
         return `%${value}%`;

@@ -20,7 +20,7 @@ export class MetricsService {
     }
 
     try {
-      return await processor.process(query as MetricQuery);
+      return await processor.process(query as unknown as MetricQuery);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

@@ -72,3 +72,76 @@ The application uses TypeORM's automatic synchronization in development mode. Fo
 npm run typeorm migration:generate
 npm run typeorm migration:run
 ```
+
+## Metric Queries
+
+The API provides a flexible querying system for metrics through the `BaseMetricProcessor`. Here are some examples of how to use it:
+
+### Basic Query
+```typescript
+const query: MetricQuery = {
+  type: MetricType.SUMMARY,
+  resolution: 'DAY',
+};
+```
+
+### Query with Date Range
+```typescript
+const query: MetricQuery = {
+  type: MetricType.SUMMARY,
+  resolution: 'DAY',
+  startDate: new Date('2024-01-01'),
+  endDate: new Date('2024-01-31'),
+};
+```
+
+### Query with Filters
+```typescript
+const query: MetricQuery = {
+  type: MetricType.SUMMARY,
+  resolution: 'DAY',
+  filters: [
+    {
+      field: FilterField.INTENT,
+      operator: FilterOperator.EQUALS,
+      value: 'greeting',
+    },
+    {
+      field: FilterField.TOPIC,
+      operator: FilterOperator.CONTAINS,
+      value: 'finance',
+    },
+  ],
+};
+```
+
+### Query with Pagination
+```typescript
+const query: MetricQuery = {
+  type: MetricType.SUMMARY,
+  resolution: 'DAY',
+  pagination: {
+    offset: 20,
+    limit: 50,
+  },
+};
+```
+
+### Available Filter Fields
+- `MESSAGE`: The log message
+- `CONTENT`: The log content
+- `CONTEXT`: The log context
+- `INTENT`: The intent from the query
+- `TOPIC`: The topic from the query
+
+### Available Filter Operators
+- `EQUALS`: Exact match
+- `CONTAINS`: Case-insensitive contains
+- `STARTS_WITH`: Case-insensitive starts with
+- `ENDS_WITH`: Case-insensitive ends with
+
+### Available Resolutions
+- `HOUR`: Hourly aggregation
+- `DAY`: Daily aggregation
+- `WEEK`: Weekly aggregation
+- `MONTH`: Monthly aggregation

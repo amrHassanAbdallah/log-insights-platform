@@ -1,28 +1,11 @@
 import { Field, Float, ObjectType } from '@nestjs/graphql';
-
-export enum MetricType {
-  SUMMARY = 'SUMMARY',
-  TIME_SERIES = 'TIME_SERIES',
-  DISTRIBUTION = 'DISTRIBUTION',
-}
+import { MetricType } from './metric.enums';
 
 export enum MetricResolution {
   HOUR = 'HOUR',
   DAY = 'DAY',
   WEEK = 'WEEK',
   MONTH = 'MONTH',
-}
-
-export enum AggregationType {
-  COUNT = 'COUNT',
-  SUM = 'SUM',
-  AVG = 'AVG',
-  MIN = 'MIN',
-  MAX = 'MAX',
-  P50 = 'P50',
-  P90 = 'P90',
-  P95 = 'P95',
-  P99 = 'P99',
 }
 
 export enum FilterOperator {
@@ -66,8 +49,8 @@ export class FilterCondition {
 
 @ObjectType()
 export class PaginationParams {
-  @Field(() => Number, { defaultValue: 1 })
-  page: number;
+  @Field(() => Number, { defaultValue: 0 })
+  offset: number;
 
   @Field(() => Number, { defaultValue: 10 })
   limit: number;
@@ -90,14 +73,11 @@ export class MetricQuery {
   @Field(() => MetricResolution)
   resolution: MetricResolution;
 
-  @Field(() => AggregationType, { nullable: true })
-  aggregation?: AggregationType;
+  @Field(() => Date, { nullable: true })
+  startDate?: Date;
 
-  @Field()
-  startDate: Date;
-
-  @Field()
-  endDate: Date;
+  @Field(() => Date, { nullable: true })
+  endDate?: Date;
 
   @Field(() => [FilterCondition], { nullable: true })
   filters?: FilterCondition[];
