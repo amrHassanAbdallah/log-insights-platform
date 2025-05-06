@@ -1,30 +1,47 @@
 version: '3.8'
 
 services:
+  api:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: dealbot
+      NODE_ENV: development
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ./backend/api:/app
+      - /app/node_modules
+    command: npm run start:dev
+    networks:
+      - app-network
+
   ingestor:
     build:
       context: ./backend/ingestor
       dockerfile: Dockerfile
     volumes:
-      - ./backend/ingestor:/usr/src/app
-      - /usr/src/app/dist
-      - /usr/src/app/node_modules
+      - ./packages:/usr/src/app/packages
+      - /usr/src/app/packages/ingestor/node_modules
+      - /usr/src/app/packages/shared/node_modules
     environment:
-      - NODE_ENV=development
-      - DB_HOST=timescaledb
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_DATABASE=dealbot
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_REGION=us-east-1
-      - AWS_S3_BUCKET=test-bucket
-      - AWS_ENDPOINT=http://localstack:4566
-      - AWS_S3_FORCE_PATH_STYLE=true
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/dealbot
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET: test-bucket
+      AWS_S3_KEY: test-key
     depends_on:
       - timescaledb
-      - localstack
     networks:
       - app-network
 
@@ -33,10 +50,10 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=dealbot
-      - TIMESCALEDB_TELEMETRY=off
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dealbot
+      TIMESCALEDB_TELEMETRY: off
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     networks:
@@ -47,37 +64,29 @@ services:
       timeout: 5s
       retries: 5
 
-  localstack:
-    image: localstack/localstack:latest
-    ports:
-      - "4566:4566"
-    environment:
-      - SERVICES=s3
-      - DEBUG=1
-      - PERSISTENCE=1
-      - DATA_DIR=/var/lib/localstack/data
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - LEGACY_PERSISTENCE=1
-      - LEGACY_DIRECTORIES=1
-    volumes:
-      - ./localstack_data:/var/lib/localstack/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  # sonarqube:
+  #   image: sonarqube:community
+  #   ports:
+  #     - "9000:9000"
+  #   environment:
+  #     SONAR_JDBC_URL: jdbc:postgresql://timescaledb:5432/sonarqube
+  #     SONAR_JDBC_USERNAME: postgres
+  #     SONAR_JDBC_PASSWORD: postgres
+  #   volumes:
+  #     - sonarqube_data:/opt/sonarqube/data
+  #     - sonarqube_extensions:/opt/sonarqube/extensions
+  #     - sonarqube_logs:/opt/sonarqube/logs
+  #   depends_on:
+  #     timescaledb:
+  #       condition: service_healthy
+  #   networks:
+  #     - app-network
 
 volumes:
   timescaledb_data:
-  localstack_data:
-    name: islamicfinanceguru_localstack_data
-    driver: local
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
 
 networks:
   app-network:

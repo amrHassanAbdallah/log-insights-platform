@@ -3,21 +3,27 @@ version: '3.8'
 services:
   api:
     build:
-      context: .
-      dockerfile: packages/api/Dockerfile
+      context: ./backend/api
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ./packages:/usr/src/app/packages
-      - /usr/src/app/packages/api/node_modules
-      - /usr/src/app/packages/shared/node_modules
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/dealbot
+      DB_HOST: timescaledb
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      NODE_ENV: production
     depends_on:
-      - timescaledb
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ./backend/api:/app
+      - /app/node_modules
+    command: npm run start:dev
     networks:
       - app-network
+    restart: unless-stopped
 
   ingestor:
     build:
@@ -28,36 +34,38 @@ services:
       - /usr/src/app/packages/ingestor/node_modules
       - /usr/src/app/packages/shared/node_modules
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/dealbot
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
-      - AWS_S3_KEY=${AWS_S3_KEY}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@timescaledb:${DB_PORT}/${DB_DATABASE}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_S3_KEY: ${AWS_S3_KEY}
     depends_on:
       - timescaledb
     networks:
       - app-network
+    restart: unless-stopped
 
   timescaledb:
     image: timescale/timescaledb:latest-pg15
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=dealbot
-      - TIMESCALEDB_TELEMETRY=off
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+      TIMESCALEDB_TELEMETRY: off
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   sonarqube:
     image: sonarqube:community

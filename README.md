@@ -212,3 +212,8 @@ For caching I believe queries related to the metrics should be cachable, however
 - Assuming that the logs data is patched into sizable and fitable chunks into the ingestor's memory, so processing them as patches make sense
 - the script should have option to re run the ingestor on a specific folder aka date
 - maybe later on we can integrate with alert manager
+
+
+
+
+TODO this needs to be updated to include the ref for each layer, aka ingestor, api, fe...etc.
