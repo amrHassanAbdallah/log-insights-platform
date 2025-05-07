@@ -77,17 +77,16 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     query: MetricQuery,
   ): SelectQueryBuilder<Log> {
     // Apply date range filters if provided
-    // if (query.startDate instanceof Date && !isNaN(query.startDate.getTime())) {
-    //   queryBuilder.andWhere('log.timestamp >= :startDate', {
-    //     startDate: query.startDate,
-    //   });
-    // }
-    //
-    // if (query.endDate instanceof Date && !isNaN(query.endDate.getTime())) {
-    //   queryBuilder.andWhere('log.timestamp <= :endDate', {
-    //     endDate: query.endDate,
-    //   });
-    // }
+    if (query.startDate instanceof Date && !isNaN(query.startDate.getTime())) {
+      queryBuilder.andWhere('log.timestamp >= :startDate', {
+        startDate: query.startDate,
+      });
+    }
+    if (query.endDate instanceof Date && !isNaN(query.endDate.getTime())) {
+      queryBuilder.andWhere('log.timestamp < :endDate', {
+        endDate: query.endDate,
+      });
+    }
 
     // Apply additional filters if provided
     if (query.filters && query.filters.length > 0) {
@@ -104,10 +103,10 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     // }
 
     // Apply pagination only if no date range is provided
-    // if (!query.startDate && !query.endDate) {
-    //   const { limit = 10, page = 0 } = query.pagination || {};
-    //   queryBuilder.skip(page * limit).take(limit);
-    // }
+    if (!query.startDate && !query.endDate) {
+      const { limit = 10, page = 0 } = query.pagination || {};
+      queryBuilder.skip(page * limit).take(limit);
+    }
 
     return queryBuilder;
   }

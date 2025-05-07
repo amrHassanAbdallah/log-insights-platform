@@ -8,14 +8,34 @@ import { GET_METRICS } from '../graphql/queries';
 export default function Home() {
   const [timeRange, setTimeRange] = useState('DAY');
 
-  const variables = useMemo(() => ({
-    query: {
-      type: 'QUERY_COUNT',
-      resolution: timeRange,
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      endDate: new Date().toISOString(),
-    },
-  }), [timeRange]);
+  const variables = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (timeRange) {
+      case 'HOUR':
+      case 'DAY':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        break;
+      case 'WEEK':
+        startDate = new Date(now.getTime() - 7 * 7 * 24 * 60 * 60 * 1000); // 7 weeks ago
+        break;
+      case 'MONTH':
+        startDate = new Date(now.getTime() - 7 * 30 * 24 * 60 * 60 * 1000); // 7 months ago
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // Default to 7 days
+    }
+
+    return {
+      query: {
+        type: 'QUERY_COUNT',
+        resolution: timeRange,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+      },
+    };
+  }, [timeRange]);
 
   const { loading, error, data } = useQuery(GET_METRICS, {
     variables,
