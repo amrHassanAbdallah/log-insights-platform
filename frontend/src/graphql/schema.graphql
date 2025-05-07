@@ -1,0 +1,68 @@
+enum MetricType {
+  QUERY_COUNT
+}
+
+enum MetricResolution {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+enum FilterOperator {
+  EQUALS
+  CONTAINS
+  STARTS_WITH
+  ENDS_WITH
+}
+
+enum FilterField {
+  MESSAGE
+  CONTENT
+  CONTEXT
+  INTENT
+  TOPIC
+}
+
+type MetricValue {
+  timestamp: String!
+  value: Float!
+  metadata: JSON
+}
+
+type MetricResult {
+  values: [MetricValue!]!
+  aggregatedValue: Float!
+}
+
+input FilterCondition {
+  field: FilterField!
+  operator: FilterOperator!
+  value: String!
+}
+
+input PaginationParams {
+  page: Int!
+  limit: Int!
+}
+
+input SortParams {
+  field: String!
+  order: String!
+}
+
+input MetricQuery {
+  type: MetricType!
+  resolution: MetricResolution!
+  startDate: String
+  endDate: String
+  filters: [FilterCondition!]
+  pagination: PaginationParams
+  sort: SortParams
+}
+
+type Query {
+  getMetrics(query: MetricQuery!): MetricResult!
+}
+
+scalar JSON 
