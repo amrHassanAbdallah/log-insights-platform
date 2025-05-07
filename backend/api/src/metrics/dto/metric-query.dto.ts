@@ -8,14 +8,18 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MetricType } from '../types/metric.enums';
-import { MetricResolution } from '../types/metric.types';
+import {
+  FilterField,
+  FilterOperator,
+  MetricResolution,
+} from '../types/metric.types';
 
-@InputType('PaginationParams')
-export class PaginationParams {
-  @Field(() => Number, { defaultValue: 1 })
+@InputType('PaginationParamsInput')
+export class PaginationParamsInput {
+  @Field(() => Number, { defaultValue: 0 })
   @IsOptional()
   @Type(() => Number)
-  page?: number = 1;
+  page?: number = 0;
 
   @Field(() => Number, { defaultValue: 10 })
   @IsOptional()
@@ -36,49 +40,73 @@ export class SortParams {
   order?: 'ASC' | 'DESC' = 'DESC';
 }
 
+@InputType('FilterConditionInput')
+export class FilterConditionInput {
+  @Field(() => FilterField)
+  @IsEnum(FilterField)
+  field: FilterField;
+
+  @Field(() => FilterOperator)
+  @IsEnum(FilterOperator)
+  operator: FilterOperator;
+
+  @Field()
+  @IsString()
+  value: string;
+}
+
 @InputType('MetricQuery')
 export class MetricQueryDto {
-  @Field(() => MetricType)
+  @Field(() => MetricType, { defaultValue: MetricType.QUERY_COUNT })
+  @IsOptional()
   @IsEnum(MetricType)
-  type: MetricType;
+  type?: MetricType = MetricType.QUERY_COUNT;
 
-  @Field()
+  @Field({ defaultValue: 'default' })
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string = 'default';
 
-  @Field(() => MetricResolution)
+  @Field(() => MetricResolution, { defaultValue: MetricResolution.HOUR })
+  @IsOptional()
   @IsEnum(MetricResolution)
-  resolution: MetricResolution;
+  resolution?: MetricResolution = MetricResolution.HOUR;
 
   @Field()
+  @IsOptional()
   @IsDate()
   @Type(() => Date)
-  startDate: Date;
+  startDate?: Date = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   @Field()
+  @IsOptional()
   @IsDate()
   @Type(() => Date)
-  endDate: Date;
+  endDate?: Date = new Date();
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, defaultValue: null })
   @IsOptional()
   @IsString()
-  context?: string;
+  context?: string = null;
 
-  @Field({ nullable: true })
+  @Field(() => [FilterConditionInput], { nullable: true, defaultValue: [] })
   @IsOptional()
-  @IsString()
-  filter?: string;
+  @ValidateNested({ each: true })
+  @Type(() => FilterConditionInput)
+  filters?: FilterConditionInput[] = [];
 
-  @Field(() => PaginationParams, { nullable: true })
+  @Field(() => PaginationParamsInput, {
+    nullable: true,
+    defaultValue: new PaginationParamsInput(),
+  })
   @IsOptional()
   @ValidateNested()
-  @Type(() => PaginationParams)
-  pagination?: PaginationParams;
+  @Type(() => PaginationParamsInput)
+  pagination?: PaginationParamsInput = new PaginationParamsInput();
 
-  @Field(() => SortParams, { nullable: true })
+  @Field(() => SortParams, { nullable: true, defaultValue: new SortParams() })
   @IsOptional()
   @ValidateNested()
   @Type(() => SortParams)
-  sort?: SortParams;
+  sort?: SortParams = new SortParams();
 }

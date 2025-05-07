@@ -1,3 +1,5 @@
+import { registerEnumType } from '@nestjs/graphql';
+
 export enum MetricType {
   SUMMARY = 'SUMMARY',
   TIME_SERIES = 'TIME_SERIES',
@@ -16,3 +18,6 @@ export enum AggregationType {
   P95 = 'P95',
   P99 = 'P99',
 }
+
+registerEnumType(MetricType, { name: 'MetricType' });
+registerEnumType(AggregationType, { name: 'AggregationType' });

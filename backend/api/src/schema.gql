@@ -1,0 +1,80 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input FilterConditionInput {
+  field: FilterField!
+  operator: FilterOperator!
+  value: String!
+}
+
+enum FilterField {
+  CONTENT
+  CONTEXT
+  INTENT
+  IP
+  MESSAGE
+  TOPIC
+}
+
+enum FilterOperator {
+  CONTAINS
+  ENDS_WITH
+  EQUALS
+  STARTS_WITH
+}
+
+input MetricQuery {
+  context: String = null
+  endDate: Timestamp! = 1746623795323
+  filters: [FilterConditionInput!] = []
+  name: String! = "default"
+  pagination: PaginationParamsInput = {limit: 10, page: 0}
+  resolution: MetricResolution! = HOUR
+  sort: SortParams = {field: "timestamp", order: "DESC"}
+  startDate: Timestamp! = 1746537395323
+  type: MetricType! = QUERY_COUNT
+}
+
+enum MetricResolution {
+  DAY
+  HOUR
+  MONTH
+  WEEK
+}
+
+type MetricResult {
+  values: [MetricValue!]!
+}
+
+enum MetricType {
+  DISTRIBUTION
+  QUERY_COUNT
+  SUMMARY
+  TIME_SERIES
+}
+
+type MetricValue {
+  metadata: Float
+  timestamp: Timestamp!
+  value: Float!
+}
+
+input PaginationParamsInput {
+  limit: Int! = 10
+  page: Int! = 0
+}
+
+type Query {
+  getMetrics(query: MetricQuery!): MetricResult!
+}
+
+input SortParams {
+  field: String! = "timestamp"
+  order: String! = "DESC"
+}
+
+"""
+`Date` type as integer. Type represents date and time as number of milliseconds from start of UNIX epoch.
+"""
+scalar Timestamp

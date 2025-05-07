@@ -22,19 +22,23 @@ export class QueryCountProcessor extends BaseMetricProcessor {
   async process(query: MetricQuery): Promise<MetricResult> {
     const { resolution } = query;
     const timeBucket = this.getTimeBucket(resolution);
+    const timeBucketExpr = `DATE_TRUNC('${timeBucket}', log.timestamp)`;
 
     // Create base query for time series data
     const timeSeriesQuery = this.createBaseQuery()
-      .select([
-        `DATE_TRUNC('${timeBucket}', log.timestamp) as timestamp`,
-        'COUNT(*) as count',
-      ])
-      .groupBy(`DATE_TRUNC('${timeBucket}', log.timestamp)`);
+      .select([`${timeBucketExpr} as timestamp`, 'COUNT(*) as count'])
+      .groupBy(timeBucketExpr)
+      .orderBy(timeBucketExpr, 'ASC');
 
     // Apply common filters
     const filteredTimeSeriesQuery = this.applyCommonFilters(
       timeSeriesQuery,
       query,
+    );
+
+    console.log(
+      'Filtered Time Series Query:',
+      filteredTimeSeriesQuery.getSql(),
     );
 
     // Execute the query

@@ -1,4 +1,4 @@
-import { Field, Float, ObjectType } from '@nestjs/graphql';
+import { Field, Float, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { MetricType } from './metric.enums';
 
 export enum MetricResolution {
@@ -21,7 +21,13 @@ export enum FilterField {
   CONTEXT = 'CONTEXT',
   INTENT = 'INTENT',
   TOPIC = 'TOPIC',
+  IP = 'IP',
 }
+
+// Register enums with GraphQL
+registerEnumType(MetricResolution, { name: 'MetricResolution' });
+registerEnumType(FilterOperator, { name: 'FilterOperator' });
+registerEnumType(FilterField, { name: 'FilterField' });
 
 @ObjectType()
 export class MetricValue {
@@ -35,57 +41,29 @@ export class MetricValue {
   metadata?: Record<string, any>;
 }
 
-@ObjectType()
 export class FilterCondition {
-  @Field(() => FilterField)
   field: FilterField;
-
-  @Field(() => FilterOperator)
   operator: FilterOperator;
-
-  @Field()
   value: string;
 }
 
-@ObjectType()
 export class PaginationParams {
-  @Field(() => Number, { defaultValue: 0 })
-  offset: number;
-
-  @Field(() => Number, { defaultValue: 10 })
+  page: number;
   limit: number;
 }
 
-@ObjectType()
 export class SortParams {
-  @Field(() => String, { defaultValue: 'timestamp' })
   field: string;
-
-  @Field(() => String, { defaultValue: 'DESC' })
   order: 'ASC' | 'DESC';
 }
 
-@ObjectType()
 export class MetricQuery {
-  @Field(() => MetricType)
   type: MetricType;
-
-  @Field(() => MetricResolution)
   resolution: MetricResolution;
-
-  @Field(() => Date, { nullable: true })
   startDate?: Date;
-
-  @Field(() => Date, { nullable: true })
   endDate?: Date;
-
-  @Field(() => [FilterCondition], { nullable: true })
   filters?: FilterCondition[];
-
-  @Field(() => PaginationParams, { nullable: true })
   pagination?: PaginationParams;
-
-  @Field(() => SortParams, { nullable: true })
   sort?: SortParams;
 }
 
@@ -93,7 +71,4 @@ export class MetricQuery {
 export class MetricResult {
   @Field(() => [MetricValue])
   values: MetricValue[];
-
-  @Field(() => Float, { nullable: true })
-  aggregatedValue?: number;
 }

@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { SelectQueryBuilder } from 'typeorm';
 import { Log } from '@/log/entities/log.entity';
+import { LogService } from '@/log/services/log.service';
+import { Injectable } from '@nestjs/common';
+import { SelectQueryBuilder } from 'typeorm';
 import { MetricType } from '../types/metric.enums';
 import {
   FilterCondition,
@@ -11,7 +11,6 @@ import {
   MetricResult,
 } from '../types/metric.types';
 import { IMetricProcessor } from './metric-processor.interface';
-import { LogService } from '@/log/services/log.service';
 
 /**
  * Base class for metric processors that provides common functionality for querying and filtering logs.
@@ -43,9 +42,7 @@ import { LogService } from '@/log/services/log.service';
  */
 @Injectable()
 export abstract class BaseMetricProcessor implements IMetricProcessor {
-  protected constructor(
-     protected readonly logService: LogService,
-  ) {}
+  protected constructor(protected readonly logService: LogService) {}
 
   /**
    * Determines if this processor supports the given metric type.
@@ -79,13 +76,18 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     queryBuilder: SelectQueryBuilder<Log>,
     query: MetricQuery,
   ): SelectQueryBuilder<Log> {
-    // Apply date range filter if provided
-    if (query.startDate && query.endDate) {
-      queryBuilder.where('log.timestamp BETWEEN :startDate AND :endDate', {
-        startDate: query.startDate,
-        endDate: query.endDate,
-      });
-    }
+    // Apply date range filters if provided
+    // if (query.startDate instanceof Date && !isNaN(query.startDate.getTime())) {
+    //   queryBuilder.andWhere('log.timestamp >= :startDate', {
+    //     startDate: query.startDate,
+    //   });
+    // }
+    //
+    // if (query.endDate instanceof Date && !isNaN(query.endDate.getTime())) {
+    //   queryBuilder.andWhere('log.timestamp <= :endDate', {
+    //     endDate: query.endDate,
+    //   });
+    // }
 
     // Apply additional filters if provided
     if (query.filters && query.filters.length > 0) {
@@ -95,15 +97,17 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
       });
     }
 
-    // Apply sorting
-    const sort = query.sort || { field: 'timestamp', order: 'DESC' };
-    queryBuilder.orderBy(`log.${sort.field}`, sort.order);
+    // Apply sorting only if not a time series query
+    // if (!query.type?.includes('TIME_SERIES')) {
+    //   const sort = query.sort || { field: 'timestamp', order: 'DESC' };
+    //   queryBuilder.orderBy(`log.${sort.field}`, sort.order);
+    // }
 
-    // Apply pagination if no date range is provided
-    if (!query.startDate || !query.endDate) {
-      const { limit = 10, offset = 0 } = query.pagination || {};
-      queryBuilder.skip(offset).take(limit);
-    }
+    // Apply pagination only if no date range is provided
+    // if (!query.startDate && !query.endDate) {
+    //   const { limit = 10, page = 0 } = query.pagination || {};
+    //   queryBuilder.skip(page * limit).take(limit);
+    // }
 
     return queryBuilder;
   }
@@ -170,8 +174,8 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     }
 
     // Always apply pagination
-    const { limit = 10, offset = 0 } = pagination || {};
-    queryBuilder.skip(offset).take(limit);
+    const { limit = 10, page = 1 } = pagination || {};
+    queryBuilder.skip(page * limit).take(limit);
 
     return queryBuilder.getMany();
   }
@@ -231,6 +235,8 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
         return "log.query->>'intent'";
       case FilterField.TOPIC:
         return "log.query->>'topic'";
+      case FilterField.IP:
+        return 'log.remoteAddress';
       default:
         return 'log.message';
     }
