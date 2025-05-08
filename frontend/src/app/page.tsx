@@ -1,5 +1,6 @@
 'use client';
 
+import { ResponseTimeChart } from '@/components/dashboard/ResponseTimeChart';
 import { useQuery } from '@apollo/client';
 import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -280,49 +281,25 @@ function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: Ch
   );
 }
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
-        <p className="mt-1 text-sm text-gray-500">Monitor and analyze various metrics over time</p>
-      </div>
-
-      <div className="space-y-6">
-        <ChartSection
-          title="Query Volume"
-          description="Monitor the number of queries over time"
-          type="QUERY_COUNT"
-          defaultTimeRange="DAY"
-        />
-        {/* <ChartSection
-          title="Response Time"
-          description="Track average response times"
-          type="RESPONSE_TIME"
-          defaultTimeRange="HOUR"
-        /> */}
-
-        {/* <ChartSection
-          title="Response Time"
-          description="Track average response times"
-          type="RESPONSE_TIME"
-          defaultTimeRange="HOUR"
-        />
-
-        <ChartSection
-          title="Error Rate"
-          description="Monitor error rates and patterns"
-          type="ERROR_RATE"
-          defaultTimeRange="DAY"
-        />
-
-        <ChartSection
-          title="Active Users"
-          description="Track concurrent user sessions"
-          type="ACTIVE_USERS"
-          defaultTimeRange="HOUR"
-        /> */}
-      </div>
+    <main className="max-w-7xl mx-auto">
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+      <p className="mt-1 text-sm text-gray-500">Monitor and analyze various metrics over time</p>
     </div>
+
+    <div className="space-y-6  mb-8">
+      <ChartSection
+        title="Query Volume"
+        description="Monitor the number of queries over time"
+        type="QUERY_COUNT"
+        defaultTimeRange="DAY"
+      />
+      </div>
+      <div className="space-y-6">
+          <ResponseTimeChart />
+        </div>
+    </main>
   );
 }

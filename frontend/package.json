@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "islamicfinanceguru-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,26 +11,29 @@
     "codegen:watch": "graphql-codegen --config codegen.ts --watch"
   },
   "dependencies": {
-    "@apollo/client": "^3.8.10",
+    "@apollo/client": "^3.9.5",
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.1.1",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.3.1",
     "graphql": "^16.8.1",
     "next": "14.1.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "recharts": "^2.12.0"
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^2.12.0",
+    "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.0",
     "@graphql-codegen/client-preset": "^4.0.0",
-    "@types/node": "^20.11.19",
-    "@types/react": "^18.2.57",
-    "@types/react-dom": "^18.2.19",
-    "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
     "eslint-config-next": "14.1.0",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3"
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5"
   }
 }
