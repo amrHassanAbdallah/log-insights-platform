@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@apollo/client';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { GET_METRICS } from '../graphql/queries';
 
@@ -14,22 +14,21 @@ interface ChartSectionProps {
 
 function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: ChartSectionProps) {
   const [timeRange, setTimeRange] = useState(defaultTimeRange);
+  const [retryCount, setRetryCount] = useState(0);
 
   const variables = useMemo(() => {
     const now = new Date();
     let startDate: Date;
 
     switch (timeRange) {
-      case 'HOUR':
-      case 'DAY':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-        break;
       case 'WEEK':
         startDate = new Date(now.getTime() - 7 * 7 * 24 * 60 * 60 * 1000); // 7 weeks ago
         break;
       case 'MONTH':
         startDate = new Date(now.getTime() - 7 * 30 * 24 * 60 * 60 * 1000); // 7 months ago
         break;
+      case 'HOUR':
+      case 'DAY':
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // Default to 7 days
     }
@@ -44,14 +43,44 @@ function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: Ch
     };
   }, [timeRange, type]);
 
-  const { loading, error, data } = useQuery(GET_METRICS, {
+  const { loading, error, data, refetch } = useQuery(GET_METRICS, {
     variables,
     fetchPolicy: "no-cache",
   });
 
+  const handleRetry = async () => {
+    setRetryCount(prev => prev + 1);
+    try {
+      await refetch();
+    } catch (error) {
+      console.error(`Error retrying ${title} chart:`, error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500">{description}</p>
+          </div>
+          <div className="flex gap-2">
+            {['HOUR', 'DAY', 'WEEK', 'MONTH'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  timeRange === range
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -65,15 +94,41 @@ function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: Ch
   if (error) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500">{description}</p>
+          </div>
+          <div className="flex gap-2">
+            {['HOUR', 'DAY', 'WEEK', 'MONTH'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  timeRange === range
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="text-center p-6 bg-red-50 rounded-lg">
           <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Data</h2>
           <p className="text-red-500">{error.message}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Retry
-          </button>
+          <div className="mt-4 space-y-2">
+            <button 
+              onClick={handleRetry}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+            {retryCount > 0 && (
+              <p className="text-sm text-gray-500">Retry attempt: {retryCount}</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -82,9 +137,41 @@ function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: Ch
   if (!data?.getMetrics?.values) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500">{description}</p>
+          </div>
+          <div className="flex gap-2">
+            {['HOUR', 'DAY', 'WEEK', 'MONTH'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  timeRange === range
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="text-center p-6 bg-yellow-50 rounded-lg">
           <h2 className="text-xl font-semibold text-yellow-600 mb-2">No Data Available</h2>
           <p className="text-yellow-500">The API returned no data. Please check the backend logs.</p>
+          <div className="mt-4 space-y-2">
+            <button 
+              onClick={handleRetry}
+              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+            >
+              Retry
+            </button>
+            {retryCount > 0 && (
+              <p className="text-sm text-gray-500">Retry attempt: {retryCount}</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -177,6 +264,17 @@ function ChartSection({ title, description, type, defaultTimeRange = 'DAY' }: Ch
             {Math.round(chartData.reduce((sum, item) => sum + item.value, 0) / chartData.length).toLocaleString()}
           </span>
         </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={handleRetry}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Data
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -197,6 +295,12 @@ export default function Home() {
           type="QUERY_COUNT"
           defaultTimeRange="DAY"
         />
+        {/* <ChartSection
+          title="Response Time"
+          description="Track average response times"
+          type="RESPONSE_TIME"
+          defaultTimeRange="HOUR"
+        /> */}
 
         {/* <ChartSection
           title="Response Time"
