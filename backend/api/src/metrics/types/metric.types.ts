@@ -1,5 +1,6 @@
 import { Field, Float, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { MetricType } from './metric.enums';
+import { GraphQLJSONObject } from 'graphql-type-json';
 
 export enum MetricResolution {
   HOUR = 'HOUR',
@@ -31,13 +32,13 @@ registerEnumType(FilterField, { name: 'FilterField' });
 
 @ObjectType()
 export class MetricValue {
-  @Field()
-  timestamp: Date;
+  @Field({ nullable: true })
+  timestamp?: Date;
 
   @Field(() => Float)
   value: number;
 
-  @Field(() => Float, { nullable: true })
+  @Field(() => GraphQLJSONObject, { nullable: true })
   metadata?: Record<string, any>;
 }
 

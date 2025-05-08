@@ -1,10 +1,10 @@
 import { registerEnumType } from '@nestjs/graphql';
 
 export enum MetricType {
-  SUMMARY = 'SUMMARY',
-  TIME_SERIES = 'TIME_SERIES',
-  DISTRIBUTION = 'DISTRIBUTION',
   QUERY_COUNT = 'QUERY_COUNT',
+  TIME_SERIES = 'TIME_SERIES',
+  QUERY_FREQUENCY = 'QUERY_FREQUENCY',
+  RESPONSE_TIME = 'RESPONSE_TIME',
 }
 
 export enum AggregationType {
@@ -19,5 +19,32 @@ export enum AggregationType {
   P99 = 'P99',
 }
 
+export enum MetricResolution {
+  HOUR = 'HOUR',
+  DAY = 'DAY',
+  WEEK = 'WEEK',
+  MONTH = 'MONTH',
+}
+
+export enum FilterField {
+  CONTENT = 'CONTENT',
+  CONTEXT = 'CONTEXT',
+  INTENT = 'INTENT',
+  IP = 'IP',
+  MESSAGE = 'MESSAGE',
+  TOPIC = 'TOPIC',
+  ANALYSIS_METHOD = 'ANALYSIS_METHOD',
+}
+
+export enum FilterOperator {
+  CONTAINS = 'CONTAINS',
+  ENDS_WITH = 'ENDS_WITH',
+  EQUALS = 'EQUALS',
+  STARTS_WITH = 'STARTS_WITH',
+}
+
 registerEnumType(MetricType, { name: 'MetricType' });
 registerEnumType(AggregationType, { name: 'AggregationType' });
+registerEnumType(MetricResolution, { name: 'MetricResolution' });
+registerEnumType(FilterField, { name: 'FilterField' });
+registerEnumType(FilterOperator, { name: 'FilterOperator' });

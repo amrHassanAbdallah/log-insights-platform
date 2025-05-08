@@ -24,15 +24,20 @@ enum FilterOperator {
   STARTS_WITH
 }
 
+"""
+The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSONObject
+
 input MetricQuery {
   context: String = null
-  endDate: Timestamp! = 1746623795323
+  endDate: Timestamp!
   filters: [FilterConditionInput!] = []
   name: String! = "default"
   pagination: PaginationParamsInput = {limit: 10, page: 0}
   resolution: MetricResolution! = HOUR
   sort: SortParams = {field: "timestamp", order: "DESC"}
-  startDate: Timestamp! = 1746537395323
+  startDate: Timestamp!
   type: MetricType! = QUERY_COUNT
 }
 
@@ -48,15 +53,15 @@ type MetricResult {
 }
 
 enum MetricType {
-  DISTRIBUTION
   QUERY_COUNT
-  SUMMARY
+  QUERY_FREQUENCY
+  RESPONSE_TIME
   TIME_SERIES
 }
 
 type MetricValue {
-  metadata: Float
-  timestamp: Timestamp!
+  metadata: JSONObject
+  timestamp: Timestamp
   value: Float!
 }
 

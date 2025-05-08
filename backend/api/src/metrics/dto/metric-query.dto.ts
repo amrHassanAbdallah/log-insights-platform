@@ -76,13 +76,13 @@ export class MetricQueryDto {
   @IsOptional()
   @IsDate()
   @Type(() => Date)
-  startDate?: Date = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  startDate?: Date  = null;
 
   @Field()
   @IsOptional()
   @IsDate()
   @Type(() => Date)
-  endDate?: Date = new Date();
+  endDate?: Date = null;
 
   @Field({ nullable: true, defaultValue: null })
   @IsOptional()

@@ -27,14 +27,16 @@ export class QueryCountProcessor extends BaseMetricProcessor {
     // Create base query for time series data
     const timeSeriesQuery = this.createBaseQuery()
       .select([`${timeBucketExpr} as timestamp`, 'COUNT(*) as count'])
-      .groupBy(timeBucketExpr)
-      .orderBy(timeBucketExpr, 'ASC');
+
 
     // Apply common filters
-    const filteredTimeSeriesQuery = this.applyCommonFilters(
+    let filteredTimeSeriesQuery = this.applyCommonFilters(
       timeSeriesQuery,
       query,
     );
+    filteredTimeSeriesQuery = filteredTimeSeriesQuery
+      .groupBy(timeBucketExpr)
+      .orderBy(timeBucketExpr, 'ASC');
 
     console.log(
       'Filtered Time Series Query:',
