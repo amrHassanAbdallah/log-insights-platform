@@ -23,8 +23,7 @@ export class ResponseTimeProcessor extends BaseMetricProcessor {
             .addSelect(`AVG((log.processingTimeMs)::numeric)`, 'avg')
             .addSelect(`PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (log.processingTimeMs)::numeric)`, 'p50')
             .addSelect(`PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY (log.processingTimeMs)::numeric)`, 'p90')
-            .where(`log.query IS NOT NULL`)
-            .andWhere(`log.processingTimeMs IS NOT NULL`)
+            .where(`log.processingTimeMs IS NOT NULL`)
 
             queryBuilder = this.applyCommonFilters(queryBuilder, query)
             .groupBy('bucket')
