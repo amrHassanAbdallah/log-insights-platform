@@ -1,11 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-interface LogQuery {
-  intent?: string;
-  topic?: string;
-  question?: string;
-  [key: string]: any;
-}
 
 @Entity('logs')
 export class Log {
@@ -24,8 +18,8 @@ export class Log {
   @Column()
   url: string;
 
-  @Column({ type: 'jsonb' })
-  query: LogQuery;
+  @Column({ nullable: true })
+  query?: string;
 
   @Column({ type: 'jsonb' })
   headers: Record<string, string>;

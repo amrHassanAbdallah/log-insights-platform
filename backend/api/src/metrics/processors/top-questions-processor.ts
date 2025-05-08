@@ -1,8 +1,8 @@
+import { LogService } from '@/log/services/log.service';
 import { Injectable } from '@nestjs/common';
 import { MetricType } from '../types/metric.enums';
 import { MetricQuery, MetricResult, MetricValue } from '../types/metric.types';
 import { BaseMetricProcessor } from './base-metric-processor';
-import { LogService } from '@/log/services/log.service';
 
 @Injectable()
 export class QueryFrequencyProcessor extends BaseMetricProcessor {
@@ -20,15 +20,10 @@ export class QueryFrequencyProcessor extends BaseMetricProcessor {
 
     const queryBuilder = this.createBaseQuery();
     queryBuilder
-      .select(`log.log_data->>'${field}'`, 'value')
+      .select(`log."rawData"->>'${field}'`, 'value')
       .addSelect('COUNT(*)', 'count')
-      .where(`log.log_data->>'type' = :type`, { type: 'QUERY' })
-      .andWhere(`log.log_data->>'${field}' IS NOT NULL`)
-      .andWhere(`(log.log_data->>'timestamp')::timestamptz BETWEEN :startDate AND :endDate`, {
-        startDate,
-        endDate,
-      })
-      .groupBy(`log.log_data->>'${field}'`)
+      .andWhere(`log."rawData"->>'${field}' IS NOT NULL`)
+      .groupBy(`log."rawData"->>'${field}'`)
       .orderBy('count', 'DESC')
       .limit(10);
     

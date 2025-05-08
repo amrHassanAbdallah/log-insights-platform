@@ -17,8 +17,8 @@ export class Log {
   @Column()
   url: string;
 
-  @Column({ type: 'jsonb' })
-  query: Record<string, any>;
+  @Column({ nullable: true })
+  query?: string;
 
   @Column({ type: 'jsonb' })
   headers: Record<string, string>;

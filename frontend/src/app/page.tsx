@@ -2,10 +2,7 @@
 
 import { QueryCountChart } from '@/components/dashboard/QueryCountChart';
 import { ResponseTimeChart } from '@/components/dashboard/ResponseTimeChart';
-import { useQuery } from '@apollo/client';
-import { useMemo, useState } from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { GET_METRICS } from '../graphql/queries';
+import { QueryFrequencyChart } from '@/components/dashboard/QueryFrequencyChart';
 
 
 export default function HomePage() {
@@ -15,6 +12,9 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <QueryCountChart />
           <ResponseTimeChart />
+        </div>
+        <div className="grid grid-cols-1 gap-6">
+        <QueryFrequencyChart />
         </div>
       </div>
     </main>
