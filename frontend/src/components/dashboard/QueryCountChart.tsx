@@ -2,8 +2,8 @@ import { gql } from '@apollo/client';
 import { MetricChart } from './MetricChart';
 
 const GET_METRICS = gql`
-  query GetMetrics {
-    getMetrics(query: { type: QUERY_COUNT, resolution: DAY }) {
+  query GetMetrics($resolution: MetricResolution!) {
+    getMetrics(query: { type: QUERY_COUNT, resolution: $resolution }) {
       values {
         metadata
         timestamp
@@ -20,10 +20,7 @@ export function QueryCountChart() {
       description="Monitor the number of queries over time"
       query={GET_METRICS}
       variables={{
-        query: {
-          type: 'QUERY_COUNT',
           resolution: 'DAY',
-        },
       }}
       dataKey="value"
       valueFormatter={(value) => value.toLocaleString()}

@@ -2,8 +2,8 @@ import { gql } from '@apollo/client';
 import { MetricChart } from './MetricChart';
 
 const GET_METRICS = gql`
-  query GetMetrics {
-    getMetrics(query: { type: RESPONSE_TIME, resolution: WEEK }) {
+  query GetMetrics($resolution: MetricResolution!) {
+    getMetrics(query: { type: RESPONSE_TIME, resolution: $resolution }) {
       values {
         metadata
         timestamp
@@ -20,10 +20,7 @@ export function ResponseTimeChart() {
       description="Track average response times and percentiles"
       query={GET_METRICS}
       variables={{
-        query: {
-          type: 'RESPONSE_TIME',
           resolution: 'WEEK',
-        },
       }}
       dataKey="value"
       valueFormatter={(value) => `${Math.round(value)}ms`}

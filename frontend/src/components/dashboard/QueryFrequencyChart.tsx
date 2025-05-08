@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { gql, useQuery } from '@apollo/client';
+import { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { TimeRangeSelector } from './TimeRangeSelector';
 
 const GET_METRICS = gql`
-  query GetMetrics {
-    getMetrics(query: { type: QUERY_FREQUENCY, resolution: WEEK }) {
+  query GetMetrics($resolution: MetricResolution!) {
+    getMetrics(query: { type: QUERY_FREQUENCY, resolution: $resolution }) {
       values {
         metadata
         timestamp
@@ -15,9 +17,18 @@ const GET_METRICS = gql`
 `;
 
 export function QueryFrequencyChart() {
+  const [timeRange, setTimeRange] = useState('MONTH');
+
   const { loading, error, data, refetch } = useQuery(GET_METRICS, {
+    variables: {
+      resolution: timeRange,
+    },
     fetchPolicy: "cache-and-network",
   });
+
+  useEffect(() => {
+    refetch();
+  }, [timeRange, refetch]);
 
   if (loading) {
     return (
@@ -28,6 +39,7 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
+            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>
@@ -51,6 +63,7 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
+            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>
@@ -80,6 +93,7 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
+            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>

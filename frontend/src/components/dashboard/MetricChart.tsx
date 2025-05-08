@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { TimeRangeSelector } from './TimeRangeSelector';
 
 interface AdditionalLine {
   dataKey: string;
@@ -10,11 +11,14 @@ interface AdditionalLine {
   color: string;
 }
 
+
 interface MetricChartProps {
   title: string;
   description: string;
   query: any;
-  variables: any;
+  variables: {
+      resolution: string;
+  };
   dataKey: string;
   valueFormatter?: (value: number) => string;
   yAxisLabel?: string;
@@ -43,16 +47,13 @@ export function MetricChart({
   showAverage = true,
   additionalLines = [],
 }: MetricChartProps) {
-  const [timeRange, setTimeRange] = useState(variables.query.resolution);
+  const [timeRange, setTimeRange] = useState<string>(variables.resolution);
   const [retryCount, setRetryCount] = useState(0);
 
   const { loading, error, data, refetch } = useQuery(query, {
     variables: {
       ...variables,
-      query: {
-        ...variables.query,
-        resolution: timeRange,
-      },
+      resolution: timeRange,
     },
     fetchPolicy: "cache-and-network",
     onError: (error) => {
@@ -68,6 +69,10 @@ export function MetricChart({
     console.log(`${title} error state:`, error);
     console.log(`${title} data state:`, data);
   }, [loading, error, data, title]);
+
+  useEffect(() => {
+    refetch();
+  }, [timeRange, refetch]);
 
   const handleRetry = async () => {
     setRetryCount(prev => prev + 1);
@@ -276,27 +281,3 @@ export function MetricChart({
   );
 }
 
-interface TimeRangeSelectorProps {
-  timeRange: string;
-  onTimeRangeChange: (range: string) => void;
-}
-
-function TimeRangeSelector({ timeRange, onTimeRangeChange }: TimeRangeSelectorProps) {
-  return (
-    <div className="flex gap-2">
-      {['HOUR', 'DAY', 'WEEK', 'MONTH'].map((range) => (
-        <button
-          key={range}
-          onClick={() => onTimeRangeChange(range)}
-          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-            timeRange === range
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          {range}
-        </button>
-      ))}
-    </div>
-  );
-} 
