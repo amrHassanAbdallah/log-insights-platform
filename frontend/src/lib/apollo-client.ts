@@ -40,23 +40,33 @@ const retryLink = new RetryLink({
   attempts: {
     max: 3,
     retryIf: (error) => {
-      console.log('Retry condition check:', error);
-      return !!error;
+      // Only retry on network errors
+      return !!error && 'networkError' in error;
     }
   }
 });
 
 export const client = new ApolloClient({
   link: from([errorLink, retryLink, httpLink]),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          getMetrics: {
+            merge: false, // Don't merge results, always use the latest
+          },
+        },
+      },
+    },
+  }),
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: 'no-cache',
+      fetchPolicy: 'cache-and-network',
       errorPolicy: 'all',
       notifyOnNetworkStatusChange: true,
     },
     query: {
-      fetchPolicy: 'no-cache',
+      fetchPolicy: 'cache-and-network',
       errorPolicy: 'all',
     },
     mutate: {
