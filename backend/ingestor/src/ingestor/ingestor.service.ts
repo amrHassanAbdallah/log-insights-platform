@@ -315,6 +315,8 @@ export class IngestorService {
       await this.processedFileRepository.manager.transaction(async (manager) => {
         const processedFileRepo = manager.getRepository(ProcessedFile);
 
+        this.logger.log(`Found ${filteredFiles.length} files to process`);
+        this.logger.log(`Filtered files: ${filteredFiles}`);
         // Find which files are already in the database
         const existingFiles = await processedFileRepo.find({
           where: {
@@ -327,14 +329,12 @@ export class IngestorService {
         const existingFileMap = new Map(
           existingFiles.map(file => [file.s3Key, file])
         );
+        this.logger.log(`Found ${existingFiles.length} existing files in the database`);
 
         // Filter out files that are already processed
         const newFiles = filteredFiles.filter(file => {
           const existingFile = existingFileMap.get(file);
-          return !existingFile || 
-                 existingFile.status === ProcessedFileStatus.FAILED ||
-                 (existingFile.status === ProcessedFileStatus.PROCESSING && 
-                  new Date().getTime() - existingFile.processedAt.getTime() > this.stuckTimeout);
+          return !existingFile;
         });
 
         if (newFiles.length === 0) {
@@ -343,7 +343,7 @@ export class IngestorService {
         }
 
         this.logger.log(`Found ${newFiles.length} new files to process`);
-
+        this.logger.log(`New files: ${newFiles}`);
         // Create entries for new files
         const filesToCreate = newFiles.map(file => ({
           s3Key: file,
@@ -354,8 +354,15 @@ export class IngestorService {
           updatedAt: new Date(),
         }));
 
-        // Save new files to database
-        await processedFileRepo.save(filesToCreate);
+        // Save new files to database with conflict handling
+        await processedFileRepo
+          .createQueryBuilder()
+          .insert()
+          .into(ProcessedFile)
+          .values(filesToCreate)
+          .orIgnore('("s3Key", "bucket") DO NOTHING')
+          .execute();
+
         this.logger.log(`Created ${filesToCreate.length} new file entries`);
       });
 

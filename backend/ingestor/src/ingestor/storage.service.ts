@@ -8,31 +8,42 @@ import { createGunzip } from 'zlib';
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly s3Client: S3Client;
+  private s3Client: S3Client;
 
-  constructor(private readonly configService: ConfigService) {
-    const region = this.configService.get<string>('AWS_REGION') || 'us-east-1';
+  constructor(private configService: ConfigService) {
     const endpoint = this.configService.get<string>('AWS_ENDPOINT');
-    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID') || '';
-    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY') || '';
+    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+    const region = this.configService.get<string>('AWS_REGION') || 'us-east-1';
 
-    this.logger.log(`Initializing S3 client with endpoint: ${endpoint} and region: ${region} and accessKeyId: ${accessKeyId} and secretAccessKey: ${secretAccessKey}`);
+    this.logger.log(`Initializing S3 client with:
+      endpoint: ${endpoint || 'default AWS endpoint'}
+      region: ${region}
+      hasAccessKey: ${!!accessKeyId}
+      hasSecretKey: ${!!secretAccessKey}
+    `);
+
+    const credentials = {
+      accessKeyId: accessKeyId || 'test',
+      secretAccessKey: secretAccessKey || 'test',
+    };
 
     this.s3Client = new S3Client({
+      ...(endpoint ? { endpoint } : {}),
       region,
-      endpoint,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-      forcePathStyle: true,
-      tls: false,
+      credentials,
+      forcePathStyle: !!endpoint,
       maxAttempts: 3,
       requestHandler: {
         connectionTimeout: 5000,
         socketTimeout: 5000,
       },
     });
+
+  }
+
+  getS3Client(): S3Client {
+    return this.s3Client;
   }
 
   async listFiles(bucket: string, prefix?: string): Promise<string[]> {
