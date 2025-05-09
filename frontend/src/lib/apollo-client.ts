@@ -1,16 +1,17 @@
 'use client';
 
-import { ApolloClient, from, HttpLink, InMemoryCache } from '@apollo/client';
-import { FetchPolicy } from '@apollo/client/core/watchQueryOptions';
+import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/graphql';
 
-// Create the http link
-const httpLink = new HttpLink({
+const httpLink = createHttpLink({
   uri: apiUrl,
   credentials: 'include',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Error handling link
@@ -52,7 +53,10 @@ export const client = new ApolloClient({
       Query: {
         fields: {
           getMetrics: {
-            merge: false, // Don't merge results, always use the latest
+            merge(existing, incoming) {
+              return incoming;
+            },
+            keyArgs: ['query'],
           },
         },
       },
@@ -60,12 +64,12 @@ export const client = new ApolloClient({
   }),
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: 'cache-and-network' as FetchPolicy,
+      fetchPolicy: 'cache-first',
       errorPolicy: 'all',
       notifyOnNetworkStatusChange: true,
     },
     query: {
-      fetchPolicy: 'cache-and-network' as FetchPolicy,
+      fetchPolicy: 'cache-first',
       errorPolicy: 'all',
     },
     mutate: {

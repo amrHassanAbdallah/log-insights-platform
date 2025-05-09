@@ -54,8 +54,6 @@ export class IngestorService {
 
   async processFiles(bucket: string, prefix?: string, afterDate?: Date): Promise<void> {
     try {
-      // First, check for and requeue stuck jobs
-      await this.requeueStuckJobs();
       
       // Get pending or stuck in-progress jobs with pagination
       let page = 0;
@@ -169,47 +167,6 @@ export class IngestorService {
         } as DeepPartial<ProcessedFile>
       );
     });
-  }
-
-  private async requeueStuckJobs(): Promise<void> {
-    try {
-      this.logger.log('Checking for stuck jobs...');
-      const stuckTime = new Date(Date.now() - this.stuckTimeout);
-      
-      // Find all jobs that are stuck in PROCESSING state for more than 1 minute
-      const stuckJobs = await this.processedFileRepository.find({
-        where: {
-          status: ProcessedFileStatus.PROCESSING,
-          processedAt: LessThan(stuckTime),
-        },
-      });
-
-      if (stuckJobs.length > 0) {
-        this.logger.log(`Found ${stuckJobs.length} stuck jobs, requeuing them...`);
-        
-        // Update their status to PENDING and reset processedAt
-        await Promise.all(
-          stuckJobs.map(job =>
-            this.processedFileRepository.update(
-              { s3Key: job.s3Key, bucket: job.bucket },
-              {
-                status: ProcessedFileStatus.PENDING,
-                processedAt: new Date(),
-                updatedAt: new Date(),
-                metadata: {
-                  ...job.metadata,
-                  lastStuckReset: new Date().toISOString(),
-                  previousStatus: job.status,
-                }
-              } as DeepPartial<ProcessedFile>
-            )
-          )
-        );
-      }
-    } catch (error) {
-      this.logger.error(`Error requeuing stuck jobs: ${error.message}`);
-      // Don't throw the error, as we want to continue processing new files
-    }
   }
 
   async processLocalFile(filePath: string): Promise<void> {

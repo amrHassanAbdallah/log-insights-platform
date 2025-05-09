@@ -2,13 +2,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { gql, useQuery } from '@apollo/client';
-import { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { TimeRangeSelector } from './TimeRangeSelector';
 
 const GET_METRICS = gql`
-  query GetMetrics($resolution: MetricResolution!) {
-    getMetrics(query: { type: QUERY_FREQUENCY, resolution: $resolution }) {
+  query GetMetrics($startDate: Timestamp!, $endDate: Timestamp!) {
+    getMetrics(query: { 
+      type: QUERY_FREQUENCY, 
+      startDate: $startDate,
+      endDate: $endDate
+    }) {
       values {
         metadata
         timestamp
@@ -19,20 +21,28 @@ const GET_METRICS = gql`
 `;
 
 export function QueryFrequencyChart() {
-  const [timeRange, setTimeRange] = useState('MONTH');
+  // Calculate start and end dates
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 1); // One month ago
 
-  const { loading, error, data, refetch } = useQuery(GET_METRICS, {
+  const { loading, error, data } = useQuery(GET_METRICS, {
     variables: {
-      resolution: timeRange,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
     },
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "cache-first",
+    onError: (error) => {
+      console.error(`Error fetching To queries data:`, error);
+    },
+    onCompleted: (data) => {
+      console.log(`To queries data received:`, data);
+    },
   });
 
-  useEffect(() => {
-    refetch();
-  }, [timeRange, refetch]);
+  console.log('QueryFrequencyChart render:', { loading, error, hasData: !!data?.getMetrics?.values });
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <Card className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
         <CardHeader>
@@ -41,7 +51,6 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
-            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>
@@ -65,21 +74,12 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
-            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>
           <div className="text-center p-6 bg-red-50 rounded-lg">
             <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Data</h2>
             <p className="text-red-500">{error.message}</p>
-            <div className="mt-4 space-y-2">
-              <button 
-                onClick={() => refetch()}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Retry
-              </button>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -95,7 +95,6 @@ export function QueryFrequencyChart() {
               <CardTitle>Top Questions</CardTitle>
               <p className="text-sm text-muted-foreground">Most frequently asked questions</p>
             </div>
-            <TimeRangeSelector timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </div>
         </CardHeader>
         <CardContent>
@@ -140,8 +139,7 @@ export function QueryFrequencyChart() {
                 stroke="#666"
                 tick={{ fill: '#666' }}
                 tickFormatter={(value) => {
-                  // Truncate long questions and add ellipsis
-                  return value.length > 50 ? value.substring(0, 50) + '...' : value;
+                  return value.length > 50 ? value.substring(0, 20) + '...' : value;
                 }}
               />
               <Tooltip
@@ -162,17 +160,6 @@ export function QueryFrequencyChart() {
               />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => refetch()}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh Data
-          </button>
         </div>
       </CardContent>
     </Card>
