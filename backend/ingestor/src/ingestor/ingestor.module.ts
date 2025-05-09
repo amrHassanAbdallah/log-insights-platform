@@ -1,15 +1,29 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Log } from '../entities/log.entity';
 import { ProcessedFile } from '../entities/processed-file.entity';
 import { IngestorService } from './ingestor.service';
+import { StorageService } from './storage.service';
 
 @Module({
   imports: [
+    ConfigModule.forRoot(),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_NAME || 'islamicfinanceguru',
+      entities: [Log, ProcessedFile],
+      synchronize: true,
+    }),
     TypeOrmModule.forFeature([Log, ProcessedFile]),
   ],
   providers: [
     IngestorService,
+    StorageService,
     {
       provide: 'INGESTOR_CONFIG',
       useValue: {

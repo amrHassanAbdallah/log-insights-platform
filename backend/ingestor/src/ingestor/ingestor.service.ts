@@ -5,7 +5,7 @@ import { DeepPartial, In, LessThan, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { ProcessedFileStatus } from '../entities/processed-file-status.enum';
 import { ProcessedFile } from '../entities/processed-file.entity';
-import { StorageService } from '../services/storage.service';
+import { StorageService } from './storage.service';
 
 interface LogEntry {
   level: string;

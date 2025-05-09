@@ -1,3 +1,5 @@
+'use client';
+
 interface TimeRangeSelectorProps {
   timeRange: string;
   onTimeRangeChange: (value: string) => void;

@@ -13,8 +13,7 @@ export class ProcessedFile {
   bucket: string;
 
   @Column({
-    type: 'enum',
-    enum: ProcessedFileStatus,
+    type: 'varchar',
     default: ProcessedFileStatus.PENDING
   })
   status: ProcessedFileStatus;

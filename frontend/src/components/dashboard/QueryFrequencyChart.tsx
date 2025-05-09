@@ -1,3 +1,5 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { gql, useQuery } from '@apollo/client';
 import { useEffect, useState } from 'react';
@@ -84,7 +86,7 @@ export function QueryFrequencyChart() {
     );
   }
 
-  if (!data?.getMetrics?.values) {
+  if (!data?.getMetrics?.values || data?.getMetrics?.values.length === 0) {
     return (
       <Card className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
         <CardHeader>

@@ -21,8 +21,8 @@ verify_aws_credentials() {
 
 # Function to wait for LocalStack to be ready
 wait_for_localstack() {
-  echo "Waiting for LocalStack to be ready..."
   while ! curl -s "$LOCALSTACK_ENDPOINT/_localstack/health" | grep -q '"s3": "running"'; do
+    echo "Waiting for LocalStack to be ready..."
     sleep 2
   done
   echo "LocalStack is ready!"

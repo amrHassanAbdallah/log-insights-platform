@@ -6,8 +6,8 @@ import { Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { ProcessedFileStatus } from '../entities/processed-file-status.enum';
 import { ProcessedFile } from '../entities/processed-file.entity';
-import { StorageService } from '../services/storage.service';
 import { IngestorService } from './ingestor.service';
+import { StorageService } from './storage.service';
 
 describe('IngestorService', () => {
   let service: IngestorService;

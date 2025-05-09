@@ -18,11 +18,13 @@ export class QueryFrequencyProcessor extends BaseMetricProcessor {
     const { startDate, endDate, resolution } = query;
     const field =  'query';
 
-    const queryBuilder = this.createBaseQuery();
+    let queryBuilder = this.createBaseQuery();
     queryBuilder
       .select(`log."rawData"->>'${field}'`, 'value')
       .addSelect('COUNT(*)', 'count')
       .andWhere(`log."rawData"->>'${field}' IS NOT NULL`)
+
+      queryBuilder = this.applyCommonFilters(queryBuilder, query)
       .groupBy(`log."rawData"->>'${field}'`)
       .orderBy('count', 'DESC')
       .limit(10);

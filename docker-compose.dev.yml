@@ -4,23 +4,24 @@ services:
   api:
     build:
       context: ./backend/api
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "4000:4000"
+    env_file:
+      - ./backend/api/.env
     environment:
-      DB_HOST: timescaledb
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: dealbot
-      NODE_ENV: development
+      - NODE_ENV=development
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=dealbot
     depends_on:
       timescaledb:
         condition: service_healthy
     volumes:
       - ./backend/api:/app
       - /app/node_modules
-    command: npm run start:prod
     networks:
       - app-network
 
@@ -43,24 +44,26 @@ services:
   ingestor:
     build:
       context: ./backend/ingestor
-      dockerfile: Dockerfile
-    volumes:
-      - ./packages:/usr/src/app/packages
-      - /usr/src/app/packages/ingestor/node_modules
-      - /usr/src/app/packages/shared/node_modules
+      dockerfile: Dockerfile.dev
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/dealbot
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_REGION: us-east-1
-      AWS_S3_BUCKET: test-bucket
-      AWS_S3_KEY: test-key
-      INGESTOR_INTERVAL: 600
-    command: npm run start:dev -- watch -b test-bucket -i ${INGESTOR_INTERVAL}
+      - NODE_ENV=development
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=dealbot
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_REGION=us-east-1
+      - AWS_S3_BUCKET=test-bucket
+      - AWS_S3_KEY=test-key
+      - AWS_ENDPOINT=http://localstack:4566
+    command: node dist/main watch -b test-bucket -i 600
     depends_on:
-      - timescaledb
-      - localstack
+      timescaledb:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -111,9 +114,7 @@ services:
 
 volumes:
   timescaledb_data:
-  sonarqube_data:
-  sonarqube_extensions:
-  sonarqube_logs:
+  localstack_data:
 
 networks:
   app-network:

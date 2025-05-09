@@ -1,3 +1,4 @@
+'use client';
 import { gql } from '@apollo/client';
 import { MetricChart } from './MetricChart';
 

@@ -1,3 +1,5 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@apollo/client';
 import { format } from 'date-fns';
@@ -140,7 +142,7 @@ export function MetricChart({
     );
   }
 
-  if (!data?.getMetrics?.values) {
+  if (!data?.getMetrics?.values || data?.getMetrics?.values.length === 0) {
     return (
       <Card className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
         <CardHeader>
