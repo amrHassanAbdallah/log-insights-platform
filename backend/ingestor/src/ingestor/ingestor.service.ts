@@ -17,7 +17,7 @@ interface LogEntry {
     id: number;
     method: string;
     url: string;
-    query: Record<string, any>;
+    query: string;
     headers: Record<string, string>;
     remoteAddress: string;
     remotePort: number;
@@ -287,7 +287,7 @@ export class IngestorService {
           level: log.level || "0",
           method: log.req?.method || 'UNKNOWN',
           url: log.req?.url || 'UNKNOWN',
-          query: log.req?.query || {},
+          query: log.req?.query || null,
           headers: log.req?.headers || {},
           context: log.context || 'UNKNOWN',
           message: log.message || '',

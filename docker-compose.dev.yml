@@ -6,13 +6,13 @@ services:
       context: ./backend/api
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       DB_HOST: timescaledb
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      DB_DATABASE: dealbot
+      DB_NAME: dealbot
       NODE_ENV: development
     depends_on:
       timescaledb:
@@ -20,7 +20,23 @@ services:
     volumes:
       - ./backend/api:/app
       - /app/node_modules
-    command: npm run start:dev
+    command: npm run start:prod
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000/graphql
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
     networks:
       - app-network
 
@@ -40,8 +56,11 @@ services:
       AWS_REGION: us-east-1
       AWS_S3_BUCKET: test-bucket
       AWS_S3_KEY: test-key
+      INGESTOR_INTERVAL: 600
+    command: npm run start:dev -- watch -b test-bucket -i ${INGESTOR_INTERVAL}
     depends_on:
       - timescaledb
+      - localstack
     networks:
       - app-network
 
@@ -64,23 +83,31 @@ services:
       timeout: 5s
       retries: 5
 
-  # sonarqube:
-  #   image: sonarqube:community
-  #   ports:
-  #     - "9000:9000"
-  #   environment:
-  #     SONAR_JDBC_URL: jdbc:postgresql://timescaledb:5432/sonarqube
-  #     SONAR_JDBC_USERNAME: postgres
-  #     SONAR_JDBC_PASSWORD: postgres
-  #   volumes:
-  #     - sonarqube_data:/opt/sonarqube/data
-  #     - sonarqube_extensions:/opt/sonarqube/extensions
-  #     - sonarqube_logs:/opt/sonarqube/logs
-  #   depends_on:
-  #     timescaledb:
-  #       condition: service_healthy
-  #   networks:
-  #     - app-network
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - PERSISTENCE=1
+      - DATA_DIR=/var/lib/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - LEGACY_PERSISTENCE=1
+      - LEGACY_DIRECTORIES=1
+    volumes:
+      - ./localstack_data:/var/lib/localstack/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   timescaledb_data:

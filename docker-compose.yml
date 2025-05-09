@@ -6,46 +6,32 @@ services:
       context: ./backend/api
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
-      DB_HOST: timescaledb
-      DB_PORT: ${DB_PORT}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_DATABASE: ${DB_DATABASE}
-      NODE_ENV: production
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/islamicfinanceguru
     depends_on:
-      timescaledb:
-        condition: service_healthy
+      - timescaledb
     volumes:
       - ./backend/api:/app
       - /app/node_modules
-    command: npm run start:dev
-    networks:
-      - app-network
-    restart: unless-stopped
 
-  ingestor:
+  frontend:
     build:
-      context: .
-      dockerfile: packages/ingestor/Dockerfile
-    volumes:
-      - ./packages:/usr/src/app/packages
-      - /usr/src/app/packages/ingestor/node_modules
-      - /usr/src/app/packages/shared/node_modules
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@timescaledb:${DB_PORT}/${DB_DATABASE}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
-      AWS_S3_KEY: ${AWS_S3_KEY}
+      - NEXT_PUBLIC_API_URL=http://api:4000/graphql
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
-      - timescaledb
-    networks:
-      - app-network
-    restart: unless-stopped
+      - api
+
+volumes:
+  postgres_data:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg15
