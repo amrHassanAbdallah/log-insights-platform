@@ -30,6 +30,7 @@ interface LogEntry {
   cacheHit?: boolean;
   documentCount?: number;
   lastUpdated?: string;
+  query?: string;
 }
 
 @Injectable()
@@ -244,7 +245,7 @@ export class IngestorService {
           level: log.level || "0",
           method: log.req?.method || 'UNKNOWN',
           url: log.req?.url || 'UNKNOWN',
-          query: log.req?.query || null,
+          query: log?.query || null,
           headers: log.req?.headers || {},
           context: log.context || 'UNKNOWN',
           message: log.message || '',
