@@ -1,10 +1,10 @@
 name: Ingestor Tests
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'backend/ingestor/**'
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'backend/ingestor/**'
   pull_request:
     branches: [ main ]
     paths:

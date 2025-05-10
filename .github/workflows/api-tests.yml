@@ -1,10 +1,10 @@
 name: API Tests
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'backend/api/**'
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'backend/api/**'
   pull_request:
     branches: [ main ]
     paths:
