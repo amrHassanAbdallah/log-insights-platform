@@ -63,49 +63,6 @@ For a detailed analysis of the functional requirements and implementation strate
 The current architecture is as follows:
 Replacing the AWS layer with postgresql table to track processed and new files.
 The reason for that is to reduce the complexity of the system and to make it more easy to test and maintain.
-### Technology Stack
-1. Data Ingestion Service
-Role: Reads JSON logs from S3 and writes them to a database.
-	•	Language: Node.js (TypeScript)
-	•	Tooling: AWS SDK (v3), streams & batching
-	•	Features:
-	•	Stream/batch read logs from S3
-	•	Transform & validate data
-	•	Bulk insert into database
-	•	One-step CLI script (npm run ingest)
-    • Easy to run and test locally with files...
-Check the [ingestion service](backend/ingestor/README.md) for more details.
-2. Database
-Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
-	•	Analytical queries (group by day/week)
-	•	JSON column support for flexible schema
-	•	Easy local setup with Docker
-For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/DATABASE_COMPARISON.md).
-If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
-3. Backend API
-API Design: GraphQL
-	•	Language: Node.js (TypeScript)
-	•	Features:
-	•	Query counts by day/week
-	•	Common questions/topics
-	•	Average response time metrics
-Check the [backend service](backend/api/README.md) for more details.
-4. Frontend
-	•	Framework: Next.js
-	•	Charting: rechart
-	•	Features:
-	•	Search & filter logs [TBD]
-	•	View metrics via graphs
-	•	Drill into topics/errors [TBD]
-	•	Simple dashboard layout
-5. **Infrastructure**
-   - Docker containers
-   - Docker Compose for orchestration
-   - Local development environment
-
-### Database Schema
-Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
-
 ### Project Structure
 This project uses a monorepo structure to manage the backend, frontend, and ingestion service. For detailed information about the project structure and monorepo benefits, see [Project Structure](docs/PROJECT_STRUCTURE.md).
 
@@ -117,6 +74,51 @@ The system uses GraphQL for its API, providing efficient data fetching and flexi
 - Real-time updates via subscriptions
 
 For a detailed comparison of API design choices and implementation considerations, see [API Comparison](docs/API_COMPARISON.md).
+
+
+### Technology Stack
+1. Data Ingestion Service
+Role: Reads JSON logs from S3 and writes them to a database.
+	-	Language: Node.js (TypeScript)
+	-	Tooling: AWS SDK (v3), streams & batching
+	-	Features:
+	-	Stream/batch read logs from S3
+	-	Transform & validate data
+	-	Bulk insert into database
+	-	One-step CLI script (npm run ingest)
+    - Easy to run and test locally with files...
+- Check the [ingestion service](backend/ingestor/README.md) for more details.
+2. Database
+Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
+	-	Analytical queries (group by day/week)
+	-	JSON column support for flexible schema
+	-	Easy local setup with Docker
+ - For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/DATABASE_COMPARISON.md).
+If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
+3. Backend API
+**API Design: GraphQL**
+	-	Language: Node.js (TypeScript)
+	-	Features:
+      -	Query counts by day/week
+      -	Common questions/topics
+      -	Average response time metrics
+- Check the [backend service](backend/api/README.md) for more details.
+4. **Frontend**
+	-	Framework: Next.js
+	-	Charting: rechart
+	-	Features:
+	-	Search & filter logs [TBD]
+	-	View metrics via graphs
+	-	Drill into topics/errors [TBD]
+	-	Simple dashboard layout
+5. **Infrastructure**
+   - Docker containers
+   - Docker Compose for orchestration
+   - Local development environment
+
+### Database Schema
+Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
+
 
 
 ## Open Questions and Considerations
