@@ -57,9 +57,11 @@ export function MetricChart({
       ...variables,
       resolution: timeRange,
     },
-    fetchPolicy: "cache-and-network",
+    fetchPolicy: "network-only",
     onError: (error) => {
       console.error(`Error fetching ${title} data:`, error);
+      console.error('Network status:', error.networkError);
+      console.error('GraphQL errors:', error.graphQLErrors);
     },
     onCompleted: (data) => {
       console.log(`${title} data received:`, data);
@@ -67,10 +69,30 @@ export function MetricChart({
   });
 
   useEffect(() => {
-    console.log(`${title} loading state:`, loading);
-    console.log(`${title} error state:`, error);
-    console.log(`${title} data state:`, data);
+    if (loading) {
+      console.log(`${title} is loading...`);
+    }
+    if (error) {
+      console.error(`${title} error:`, error);
+    }
+    if (data) {
+      console.log(`${title} data updated:`, data);
+    }
   }, [loading, error, data, title]);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (loading) {
+      timeoutId = setTimeout(() => {
+        console.warn(`${title} query is taking longer than expected`);
+      }, 5000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [loading, title]);
 
   useEffect(() => {
     refetch();

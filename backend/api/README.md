@@ -80,7 +80,7 @@ The API provides a flexible querying system for metrics through the `BaseMetricP
 ### Basic Query
 ```typescript
 const query: MetricQuery = {
-  type: MetricType.SUMMARY,
+  type: MetricType.QUERY_COUNT,
   resolution: 'DAY',
 };
 ```
@@ -88,7 +88,7 @@ const query: MetricQuery = {
 ### Query with Date Range
 ```typescript
 const query: MetricQuery = {
-  type: MetricType.SUMMARY,
+  type: MetricType.QUERY_COUNT,
   resolution: 'DAY',
   startDate: new Date('2024-01-01'),
   endDate: new Date('2024-01-31'),

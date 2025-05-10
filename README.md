@@ -215,6 +215,9 @@ Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
 - maybe later on we can integrate with the alert manager
 - Add lint rules to prevent common issues such as console.log usage
 - Add unit tests for our use case integeration test would be better as there is no service logic
+- Using the cache manager in memory or redis to cache the metrics data most of it doesn't change very fre, escpially if we showed data that's today - 1 till 7 days back.
+
+
 
 
 

@@ -2,7 +2,6 @@ import { registerEnumType } from '@nestjs/graphql';
 
 export enum MetricType {
   QUERY_COUNT = 'QUERY_COUNT',
-  TIME_SERIES = 'TIME_SERIES',
   QUERY_FREQUENCY = 'QUERY_FREQUENCY',
   RESPONSE_TIME = 'RESPONSE_TIME',
 }

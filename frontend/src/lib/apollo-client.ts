@@ -64,12 +64,12 @@ export const client = new ApolloClient({
   }),
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: 'cache-first',
+      fetchPolicy: 'network-only',
       errorPolicy: 'all',
       notifyOnNetworkStatusChange: true,
     },
     query: {
-      fetchPolicy: 'cache-first',
+      fetchPolicy: 'network-only',
       errorPolicy: 'all',
     },
     mutate: {
