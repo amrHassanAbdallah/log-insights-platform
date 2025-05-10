@@ -103,10 +103,8 @@ export abstract class BaseMetricProcessor implements IMetricProcessor {
     // }
 
     // Apply pagination only if no date range is provided
-    if (!query.startDate && !query.endDate) {
-      const { limit = 10, page = 0 } = query.pagination || {};
-      queryBuilder.skip(page * limit).take(limit);
-    }
+    const { limit = 20, page = 0 } = query.pagination || {};
+    queryBuilder.skip(page * limit).take(limit);
 
     return queryBuilder;
   }

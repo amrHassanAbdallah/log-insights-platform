@@ -1,0 +1,123 @@
+name: Ingestor Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/ingestor/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/ingestor/**'
+
+jobs:
+  test:
+    name: Run Ingestor Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: islamicfinanceguru_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: s3
+          DEBUG: 1
+          DATA_DIR: /tmp/localstack/data
+          DOCKER_HOST: unix:///var/run/docker.sock
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+        options: >-
+          --health-cmd "curl -f http://localhost:4566/_localstack/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/ingestor/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend/ingestor
+        run: npm ci
+
+      - name: Create test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE islamicfinanceguru_test;"
+        env:
+          PGPASSWORD: postgres
+
+      - name: Setup LocalStack
+        run: |
+          # Wait for LocalStack to be ready
+          while ! curl -s http://localhost:4566/_localstack/health | grep -q '"s3": "running"'; do
+            sleep 2
+          done
+          
+          # Create test bucket
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
+          
+          # Create test data
+          echo '{"test": "data"}' > test.json
+          gzip test.json
+          
+          # Upload test data
+          aws --endpoint-url=http://localhost:4566 s3 cp test.json.gz s3://test-bucket/
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+
+      - name: Run linting
+        working-directory: backend/ingestor
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: backend/ingestor
+        env:
+          NODE_ENV: test
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: 5432
+          TEST_DB_USERNAME: postgres
+          TEST_DB_PASSWORD: postgres
+          TEST_DB_NAME: islamicfinanceguru_test
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ENDPOINT: http://localhost:4566
+          AWS_S3_BUCKET: test-bucket
+        run: npm run test:e2e
+
+
+      - name: Check test coverage
+        working-directory: backend/ingestor
+        run: |
+          if [ -f "coverage/coverage-summary.json" ]; then
+            COVERAGE=$(node -e "console.log(require('./coverage/coverage-summary.json').total.lines.pct)")
+            if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+              echo "Test coverage is below 80% (current: $COVERAGE%)"
+              exit 1
+            fi
+          fi 
