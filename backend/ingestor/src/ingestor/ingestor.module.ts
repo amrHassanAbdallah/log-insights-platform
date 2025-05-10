@@ -5,6 +5,7 @@ import { Log } from '../entities/log.entity';
 import { ProcessedFile } from '../entities/processed-file.entity';
 import { IngestorService } from './ingestor.service';
 import { StorageService } from './storage.service';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -17,7 +18,9 @@ import { StorageService } from './storage.service';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'islamicfinanceguru',
       entities: [Log, ProcessedFile],
-      synchronize: true,
+      migrations: [join(__dirname,'..', 'migrations', '*.{ts,js}')],
+      synchronize: process.env.NODE_ENV !== 'production',
+      migrationsRun: process.env.NODE_ENV === 'production',
     }),
     TypeOrmModule.forFeature([Log, ProcessedFile]),
   ],

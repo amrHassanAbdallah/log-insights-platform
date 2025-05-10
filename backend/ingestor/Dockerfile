@@ -18,4 +18,4 @@ RUN npm run build
 
 
 # Start the application with process-files command
-CMD ["npm", "run", "process-files"] 
+CMD ["npm", "run", "start:prod"] 

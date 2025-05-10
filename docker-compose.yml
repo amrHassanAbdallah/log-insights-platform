@@ -15,7 +15,7 @@ services:
       - DB_PORT=5432
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
-      - DB_NAME=dealbot
+      - DB_NAME=logs
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -45,7 +45,7 @@ services:
       - DB_PORT=5432
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
-      - DB_NAME=dealbot
+      - DB_NAME=logs
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
@@ -54,6 +54,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - app-network
 
@@ -64,7 +66,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dealbot
+      POSTGRES_DB: logs
       TIMESCALEDB_TELEMETRY: off
     volumes:
       - timescaledb_data:/var/lib/postgresql/data

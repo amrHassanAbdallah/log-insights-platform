@@ -4,7 +4,7 @@ export class AddRawDataQueryIndex1710000000000 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_rawdata_query 
-            ON logs USING GIN ((rawData->'query'));
+            ON logs USING GIN ((("rawData"->'query')));
         `);
     }
 
