@@ -65,7 +65,6 @@ Replacing the AWS layer with postgresql table to track processed and new files.
 The reason for that is to reduce the complexity of the system and to make it more easy to test and maintain.
 ### Technology Stack
 1. Data Ingestion Service
-
 Role: Reads JSON logs from S3 and writes them to a database.
 	•	Language: Node.js (TypeScript)
 	•	Tooling: AWS SDK (v3), streams & batching
@@ -75,20 +74,14 @@ Role: Reads JSON logs from S3 and writes them to a database.
 	•	Bulk insert into database
 	•	One-step CLI script (npm run ingest)
     • Easy to run and test locally with files...
-
 Check the [ingestion service](backend/ingestor/README.md) for more details.
-
 2. Database
-
 Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
 	•	Analytical queries (group by day/week)
 	•	JSON column support for flexible schema
 	•	Easy local setup with Docker
-
 For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/DATABASE_COMPARISON.md).
-
 If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
-
 3. Backend API
 API Design: GraphQL
 	•	Language: Node.js (TypeScript)
@@ -105,8 +98,6 @@ Check the [backend service](backend/api/README.md) for more details.
 	•	View metrics via graphs
 	•	Drill into topics/errors [TBD]
 	•	Simple dashboard layout
-
-
 5. **Infrastructure**
    - Docker containers
    - Docker Compose for orchestration
@@ -182,6 +173,7 @@ For a detailed comparison of API design choices and implementation consideration
 ## Notes/ Future work
 - Fix the FE initial loading issue
 - handle records with no time stamp to pull it from the file/folder instead of setting the now file/ also handle record failure in a deadletter queue or something.
+- Add health endpoints for better tracking of the app health
 - Assuming that the logs data is patched into sizable and fitable chunks into the ingestor's memory, so processing them as patches make sense
 - the script should have option to re run the ingestor on a specific folder aka date
 - maybe later on we can integrate with the alert manager
@@ -194,3 +186,5 @@ For a detailed comparison of API design choices and implementation consideration
 
 
 
+####
+[Project demo](https://www.loom.com/share/55f7c40c0d8848ed8a7cbe98e12a45f4?sid=b5524a62-8863-40b0-817b-b9afd5b560b0)
