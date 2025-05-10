@@ -209,6 +209,7 @@ Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
 
 
 ## Notes/ Future work
+- Fix the FE initial loading issue
 - handle records with no time stamp to pull it from the file/folder instead of setting the now file/ also handle record failure in a deadletter queue or something.
 - Assuming that the logs data is patched into sizable and fitable chunks into the ingestor's memory, so processing them as patches make sense
 - the script should have option to re run the ingestor on a specific folder aka date
