@@ -6,17 +6,6 @@ This system provides analytics and monitoring capabilities for the Deal Bot, a C
 My intial thoughts when drafting the design doc for this porblem is the below
 ![ELK](docs/elk.png)
 
-## Project Structure
-This project uses a monorepo structure to manage the backend, frontend, and ingestion service. For detailed information about the project structure and monorepo benefits, see [Project Structure](docs/PROJECT_STRUCTURE.md).
-
-## API Design
-The system uses GraphQL for its API, providing efficient data fetching and flexible querying capabilities. This choice enables:
-- Efficient multi-query support
-- Selective field fetching
-- Complex filtering for log search
-- Real-time updates via subscriptions
-
-For a detailed comparison of API design choices and implementation considerations, see [API Comparison](docs/API_COMPARISON.md).
 
 ## System Requirements
 
@@ -28,39 +17,6 @@ For a detailed analysis of the functional requirements and implementation strate
    - Parse logs efficiently using batching/streaming
    - Store data in an analytics-optimized database
    - Provide single-command ingestion pipeline
-
-Log format
-```
-
-{
-    "level": 30,
-    "time": 1743532441581,
-    "timestamp": "2025-04-01T18:34:01.581Z",
-    "pid": 46,
-    "hostname": "75915b60-c2beffba-b9de-4b",
-    "req": {
-      "id": 3558,
-      "method": "GET",
-      "url": "/deals",
-      "query": {},
-      "headers": {
-        "x-forwarded-for": "184.182.215.20",
-        "x-forwarded-proto": "https",
-        "x-forwarded-port": "443",
-        "host": "cur8-api.pub.islamicfinanceguru.dev",
-        "x-amzn-trace-id": "Root=1-36ec6b44-66b2bbac-c4fd-41e3b063b5",
-        "user-agent": "Cur8Mobile/2.2.9 (iOS 16.4)",
-        "cookie": "auth_user_id=1102; access_token=f1406962-e38c-4cbe-a5cf-a5b76707fe4d; refresh_token=7a9be37d-4640-4d4b-bfbb-326eb622afb5"
-      },
-      "remoteAddress": "::ffff:10.0.236.240",
-      "remotePort": 19250
-    },
-    "context": "ApiController",
-    "message": "Processing GET request for /deals",
-    "authUserId": 1102
-  }
-
-```
 
 
 2. **Backend API**
@@ -156,6 +112,19 @@ Check the [backend service](backend/api/README.md) for more details.
 
 ### Database Schema
 Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
+
+### Project Structure
+This project uses a monorepo structure to manage the backend, frontend, and ingestion service. For detailed information about the project structure and monorepo benefits, see [Project Structure](docs/PROJECT_STRUCTURE.md).
+
+### API Design
+The system uses GraphQL for its API, providing efficient data fetching and flexible querying capabilities. This choice enables:
+- Efficient multi-query support
+- Selective field fetching
+- Complex filtering for log search
+- Real-time updates via subscriptions
+
+For a detailed comparison of API design choices and implementation considerations, see [API Comparison](docs/API_COMPARISON.md).
+
 
 ## Open Questions and Considerations
 
