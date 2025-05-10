@@ -243,7 +243,7 @@ export class IngestorService {
         // Create and save the log with normalized fields
         const logEntity = this.logsRepository.create({
           id: log.req?.id?.toString() || `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: new Date(log.timestamp),
+          timestamp: new Date(log.timestamp) || new Date(),
           level: log.level || "0",
           method: log.req?.method || 'UNKNOWN',
           url: log.req?.url || 'UNKNOWN',

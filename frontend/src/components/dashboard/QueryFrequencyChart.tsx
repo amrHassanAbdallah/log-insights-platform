@@ -24,7 +24,7 @@ export function QueryFrequencyChart() {
   // Calculate start and end dates
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setMonth(startDate.getMonth() - 1); // One month ago
+  startDate.setDate(startDate.getDay() - 14); // One month ago
 
   const { loading, error, data } = useQuery(GET_METRICS, {
     variables: {

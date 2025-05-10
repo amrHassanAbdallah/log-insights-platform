@@ -141,7 +141,7 @@ API Design: GraphQL
 Check the [backend service](backend/api/README.md) for more details.
 4. Frontend
 	•	Framework: Next.js
-	•	Charting: Chart.js 
+	•	Charting: rechart
 	•	Features:
 	•	Search & filter logs [TBD]
 	•	View metrics via graphs
@@ -209,9 +209,12 @@ Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
 
 
 ## Notes/ Future work
+- handle records with no time stamp to pull it from the file/folder instead of setting the now file/ also handle record failure in a deadletter queue or something.
 - Assuming that the logs data is patched into sizable and fitable chunks into the ingestor's memory, so processing them as patches make sense
 - the script should have option to re run the ingestor on a specific folder aka date
 - maybe later on we can integrate with the alert manager
+- Add lint rules to prevent common issues such as console.log usage
+- Add unit tests for our use case integeration test would be better as there is no service logic
 
 
 
