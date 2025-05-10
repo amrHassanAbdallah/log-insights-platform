@@ -11,6 +11,7 @@ import { CustomThrottlerGuard } from './common/guards/throttler.guard';
 import { ErrorHandlerMiddleware } from './common/middleware/error-handler.middleware';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { ValidationPipe } from './common/pipes/validation.pipe';
+import { dataSourceOptions } from './data-source';
 import { MetricsModule } from './metrics/metrics.module';
 
 interface GraphQLError {
@@ -68,14 +69,8 @@ interface GraphQLContext {
       },
     }),
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT, 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV !== 'production',
+      ...dataSourceOptions,
+      migrationsRun: process.env.NODE_ENV === 'production',
     }),
     MetricsModule,
   ],

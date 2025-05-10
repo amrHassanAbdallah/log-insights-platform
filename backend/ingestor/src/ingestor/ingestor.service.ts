@@ -38,7 +38,6 @@ export class IngestorService {
   private readonly logger = new Logger(IngestorService.name);
   private readonly stuckTimeout: number;
   private readonly pageSize: number;
-  private processedAnyJobs: boolean = false;
 
   constructor(
     @InjectRepository(Log)
@@ -62,8 +61,11 @@ export class IngestorService {
 
       // First, process any existing pending jobs
       while (hasMore) {
+        this.logger.log(`Processing page ${page}`);
         const jobs = await this.getPendingJobs(page);
+        this.logger.log(`Found ${jobs.length} pending jobs`);
         if (jobs.length === 0) {
+          this.logger.log('No pending jobs found, checking S3 for new files...');
           hasMore = false;
           break;
         }
@@ -113,7 +115,7 @@ export class IngestorService {
       }
 
       // If no pending jobs were found, check S3 for new files
-      if (!this.processedAnyJobs) {
+      if (!hasMore) {
         this.logger.log('No pending jobs found, checking S3 for new files...');
         await this.processNewS3Files(bucket, prefix);
       }
@@ -274,8 +276,6 @@ export class IngestorService {
   private async processNewS3Files(bucket: string, prefix?: string): Promise<void> {
     try {
       // List files from S3
-      this.processedAnyJobs = true;
-
       const files = await this.storageService.listFiles(bucket, prefix);
       this.logger.log(`Found ${files.length} files in S3`);
 
