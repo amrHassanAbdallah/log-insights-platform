@@ -58,6 +58,8 @@ For a detailed analysis of the functional requirements and implementation strate
 ![Architecture Diagram](docs/arch-dia.png)
 
 ### Current
+![Architecture Diagram](docs/current-arch-dia.png)
+
 The current architecture is as follows:
 Replacing the AWS layer with postgresql table to track processed and new files.
 The reason for that is to reduce the complexity of the system and to make it more easy to test and maintain.
