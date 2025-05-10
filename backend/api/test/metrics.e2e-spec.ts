@@ -40,21 +40,21 @@ describe('Metrics (e2e)', () => {
       await logRepo.save([
         {
           timestamp: twoWeeksAgo,
-          level: 1,
+          level: 'info',
           message: 'Test query 1',
           metadata: { query: 'What is Islamic finance?' },
           value: 1,
         },
         {
           timestamp: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-          level: 1,
+          level: 'info',
           message: 'Test query 2',
           metadata: { query: 'What is Islamic finance?' },
           value: 1,
         },
         {
           timestamp: now,
-          level: 1,
+          level: 'info',
           message: 'Test query 3',
           metadata: { query: 'What is riba?' },
           value: 1,
@@ -194,21 +194,21 @@ describe('Metrics (e2e)', () => {
       // Query 1: 3 occurrences
       {
         timestamp: twoWeeksAgo,
-        level: 1,
+        level: 'info',
         message: 'Test query 1',
         metadata: { query: 'What is Islamic finance?' },
         value: 1,
       },
       {
         timestamp: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-        level: 1,
+        level: 'info',
         message: 'Test query 1',
         metadata: { query: 'What is Islamic finance?' },
         value: 1,
       },
       {
         timestamp: now,
-        level: 1,
+        level: 'info',
         message: 'Test query 1',
         metadata: { query: 'What is Islamic finance?' },
         value: 1,
@@ -216,14 +216,14 @@ describe('Metrics (e2e)', () => {
       // Query 2: 2 occurrences
       {
         timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-        level: 1,
+        level: 'info',
         message: 'Test query 2',
         metadata: { query: 'What is riba?' },
         value: 1,
       },
       {
         timestamp: now,
-        level: 1,
+        level: 'info',
         message: 'Test query 2',
         metadata: { query: 'What is riba?' },
         value: 1,
@@ -231,7 +231,7 @@ describe('Metrics (e2e)', () => {
       // Query 3: 1 occurrence
       {
         timestamp: now,
-        level: 1,
+        level: 'info',
         message: 'Test query 3',
         metadata: { query: 'What is halal investment?' },
         value: 1,
