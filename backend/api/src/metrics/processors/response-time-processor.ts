@@ -27,7 +27,7 @@ export class ResponseTimeProcessor extends BaseMetricProcessor {
 
             queryBuilder = this.applyCommonFilters(queryBuilder, query)
             .groupBy('bucket')
-            .orderBy('bucket', 'ASC')
+            .orderBy('bucket', 'DESC')
             .setParameter('resolution', resolution);
 
             console.log(

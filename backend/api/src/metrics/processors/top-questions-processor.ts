@@ -15,7 +15,6 @@ export class QueryFrequencyProcessor extends BaseMetricProcessor {
   }
 
   async process(query: MetricQuery): Promise<MetricResult> {
-    const { startDate, endDate, resolution } = query;
     const field =  'query';
 
     let queryBuilder = this.createBaseQuery();
@@ -27,7 +26,6 @@ export class QueryFrequencyProcessor extends BaseMetricProcessor {
       queryBuilder = this.applyCommonFilters(queryBuilder, query)
       .groupBy(`log."rawData"->>'${field}'`)
       .orderBy('count', 'DESC')
-      .limit(10);
     
     const rawResults = await queryBuilder.getRawMany();
     const values: MetricValue[] = rawResults.map(row => ({

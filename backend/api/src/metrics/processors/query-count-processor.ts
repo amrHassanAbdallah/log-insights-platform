@@ -36,7 +36,7 @@ export class QueryCountProcessor extends BaseMetricProcessor {
     );
     filteredTimeSeriesQuery = filteredTimeSeriesQuery
       .groupBy(timeBucketExpr)
-      .orderBy(timeBucketExpr, 'ASC');
+      .orderBy(timeBucketExpr, 'DESC');
 
     console.log(
       'Filtered Time Series Query:',
