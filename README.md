@@ -95,7 +95,16 @@ Log format
 ## Proposed Solution
 
 ### Architecture Overview
+
+
+
+### IDEAL Arch  
 ![Architecture Diagram](docs/arch-dia.png)
+
+### Current
+The current architecture is as follows:
+Replacing the AWS layer with postgresql table to track processed and new files.
+The reason for that is to reduce the complexity of the system and to make it more easy to test and maintain.
 ### Technology Stack
 1. Data Ingestion Service
 
@@ -109,6 +118,8 @@ Role: Reads JSON logs from S3 and writes them to a database.
 	•	One-step CLI script (npm run ingest)
     • Easy to run and test locally with files...
 
+Check the [ingestion service](backend/ingestor/README.md) for more details.
+
 2. Database
 
 Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
@@ -116,32 +127,25 @@ Recommendation: PostgreSQL (via TimescaleDB or native indexes) for:
 	•	JSON column support for flexible schema
 	•	Easy local setup with Docker
 
-For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/database-comparison.md).
+For a detailed comparison of different database options (TimescaleDB, ClickHouse, Elasticsearch, and MongoDB Time Series), see [Database Comparison](docs/DATABASE_COMPARISON.md).
 
 If scale demands more, ClickHouse could be a fast analytical DB — but PostgreSQL is safer for now and easier to set up/test locally and will support searching as well as aggregation later on we could either spilt the searching from the aggregation or find a solution that supports both
 
 3. Backend API
-
-Role: Exposes analytics data.
-	•	Framework: NestJS (TypeScript)
-	•	API Type: REST (simple, cacheable)
-	•	Endpoints:
-	•	/metrics/daily-queries
-	•	/metrics/top-questions
-	•	/metrics/empty-results
-	•	/metrics/average-response-time
-	•	/logs?search=...&page=...
-
-Why REST? well, there is no details about wither the app is going to be mobile or webapp, while graphql will gave us a space for better control over the returned content, and coming with apollo client support that will make a nice visibility for our APIs, hmmm, I might need to revist this just because of the nice visibility and better extendability...
-For caching I believe queries related to the metrics should be cachable, however will need to think a bit about the evication policy and updating them...
-
-4. Frontend
-	•	Framework: Next.js (or React with Vite) => needs research on whatever theme that support most of these re
-	•	Charting: Chart.js or Recharts
+API Design: GraphQL
+	•	Language: Node.js (TypeScript)
 	•	Features:
-	•	Search & filter logs
+	•	Query counts by day/week
+	•	Common questions/topics
+	•	Average response time metrics
+Check the [backend service](backend/api/README.md) for more details.
+4. Frontend
+	•	Framework: Next.js
+	•	Charting: Chart.js 
+	•	Features:
+	•	Search & filter logs [TBD]
 	•	View metrics via graphs
-	•	Drill into topics/errors
+	•	Drill into topics/errors [TBD]
 	•	Simple dashboard layout
 
 
@@ -151,7 +155,7 @@ For caching I believe queries related to the metrics should be cachable, however
    - Local development environment
 
 ### Database Schema
-
+Check the [database schema](docs/SCHEMA_LOGS_ANALYSIS.md) for more details.
 
 ## Open Questions and Considerations
 
@@ -200,20 +204,15 @@ For caching I believe queries related to the metrics should be cachable, however
 
 1. Clone the repository
 2. Set up environment variables
-3. Run `docker compose up`
-4. Access the application at `http://localhost`
+3. Run `export AWS_ACCESS_KEY_ID='YOUR_AWS_ACCESS_KEY_ID' && export AWS_SECRET_ACCESS_KEY='YOUR_AWS_SECRET_ACCESS_KEY' && export AWS_REGION="us-east-1" && export AWS_S3_BUCKET="dev.deal-bot-logs" && docker-compose up`
+4. Access the application at `http://localhost:3000`
 
 
 ## Notes/ Future work
-- The system is designed to run within a trusted boundary
-- Authentication/authorization is not required
-- Focus is on functionality and usability over visual design
-- Performance optimization for current scale only 
 - Assuming that the logs data is patched into sizable and fitable chunks into the ingestor's memory, so processing them as patches make sense
 - the script should have option to re run the ingestor on a specific folder aka date
-- maybe later on we can integrate with alert manager
+- maybe later on we can integrate with the alert manager
 
 
 
 
-TODO this needs to be updated to include the ref for each layer, aka ingestor, api, fe...etc.

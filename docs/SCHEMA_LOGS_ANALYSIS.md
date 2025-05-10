@@ -44,7 +44,7 @@ When you are uncertain which log fields will appear and log formats may evolve, 
 - Sparse or nullable columns if fields are optional  
 - Upfront design work to anticipate core fields  
 
-## Hybrid approach (recommended resolution)
+## Hybrid approach (Picked)
 
 1. **Normalize core fields** you will always query (e.g. `timestamp`, `auth_user_id`, `url`, `method`, `response_time_ms`, `status_code`).  
 2. **Keep a catch-all `jsonb raw` column** for all other, evolving or rare fields.  
