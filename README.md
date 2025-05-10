@@ -1,7 +1,7 @@
-# Deal Bot Analytics System
+# Logs Analytics System
 
 ## Overview
-This system provides analytics and monitoring capabilities for the Deal Bot, a ChatGPT-style feature in the Cur8 Capital app that helps investors query deal information. The system processes interaction logs, stores them efficiently, and provides insights through a user-friendly interface.
+This system provides analytics and monitoring capabilities over our logs, espcially logs related to our new gpt feature, a ChatGPT-style feature in the Cur8 Capital app that helps investors query deal information. The system processes interaction logs, stores them efficiently, and provides insights through a user-friendly interface.
 
 My intial thoughts when drafting the design doc for this porblem is the below
 ![ELK](docs/elk.png)
@@ -141,6 +141,8 @@ For a detailed comparison of API design choices and implementation consideration
         Maybe move old and processed files into a cold storage
    - How to implement efficient caching?
         Most likely the place that would need caching the most would be the metrics side aka the aggregations, should we use redis or in memory? for the time being will go with in memory to deliever this task fast, should we go with pre calc aggregations or cache on demand? well, the easiest and more convent would be in demand and if we notice that it takes to much time and it's important to fit certin SLO then we will go with the pre-calc.
+3. Are we interested in all logs or we should just persist Deal related logs?
+I assumed that we are interested in all logs, so that's what I did, however if we are not we can just adjust the ingestor logic to actualy ignore not related context logs.
 
 ## Implementation Plan
 
@@ -154,10 +156,8 @@ For a detailed comparison of API design choices and implementation consideration
    - Implement backend API
    - Create basic frontend interface
    - Add essential analytics
-   - Implement search functionality
 
 3. **Phase 3: Enhancement**
-   - Add advanced visualizations
    - Implement caching
    - Optimize performance
    - Add comprehensive testing
