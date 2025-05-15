@@ -120,3 +120,28 @@ I already tried looking through the logs but no luck.
 - Calculate:
   - AVG(processingTimeMs)
   - Percentiles (90th, 95th, 99th)
+
+## 5. Search and browse conversation logs
+Focus
+```
+
+ "query": "What are the potential risks associated with the Cash GBP deal, given that it's labeled as low risk?",
+  "answer": "While the Cash GBP deal is labeled as low risk, it is important to note that all investments involve some level of risk. Potential risks could include market fluctuations, changes in interest rates, or the financial stability of the partnering Islamic banks. Additionally, while the deal aims to provide accessible income, returns are not guaranteed. For a more comprehensive understanding of the risks involved, it's advisable to review the full deal documentation.",
+```
+Input
+query: {operation: 'perfix', term:'something', field: 'query'}
+Output:
+```
+{
+values: [
+    {
+        id: '12345',
+        query: 'What are the potential risks associated with the Cash GBP deal, given that it\'s labeled as low risk?',
+        answer: 'While the Cash GBP deal is labeled as low risk, it is important to note that all investments involve some level of risk. Potential risks could include market fluctuations, changes in interest rates, or the financial stability of the partnering Islamic banks. Additionally, while the deal aims to provide accessible income, returns are not guaranteed. For a more comprehensive understanding of the risks involved, it\'s advisable to review the full deal documentation.'
+        score: 0.9999999999999999,
+    }
+]
+count: 1
+}
+
+```

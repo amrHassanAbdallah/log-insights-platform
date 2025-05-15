@@ -13,6 +13,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { ValidationPipe } from './common/pipes/validation.pipe';
 import { dataSourceOptions } from './data-source';
 import { MetricsModule } from './metrics/metrics.module';
+import { SearchModule } from '@/search/search.module';
 
 interface GraphQLError {
   message: string;
@@ -73,6 +74,7 @@ interface GraphQLContext {
       migrationsRun: process.env.NODE_ENV === 'production',
     }),
     MetricsModule,
+    SearchModule
   ],
   providers: [
     {

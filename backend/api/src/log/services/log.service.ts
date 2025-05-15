@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Log } from '../entities/log.entity';
+import { SearchQuery } from '@/search/types/metric.types';
 
 @Injectable()
 export class LogService {
@@ -97,5 +98,18 @@ export class LogService {
           endDate,
         })
     );
+  }
+
+
+  async searchLogs(query: SearchQuery): Promise<Log[]> {
+    //do some validation over the filters size and all of that
+    let queryBuilder = this.createQueryBuilder();
+    //select * from "public"."logs" where context = 'DealBotService' and "rawData"->>'query' like '%a%'
+    queryBuilder = queryBuilder.andWhere('log.context = :context', { context: 'DealBotService' });
+    queryBuilder = queryBuilder.andWhere('log.rawData->>\'query\' LIKE :query', { query: `%${query.filters[0].value}%` });
+    //todo do sorting/ pagination.
+
+    return queryBuilder.getMany()
+
   }
 } 
