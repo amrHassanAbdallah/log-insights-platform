@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs/promises';
-import { DeepPartial, In, LessThan, Repository } from 'typeorm';
+import { DeepPartial, In, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { ProcessedFileStatus } from '../entities/processed-file-status.enum';
 import { ProcessedFile } from '../entities/processed-file.entity';
@@ -70,8 +70,6 @@ export class IngestorService {
           break;
         }
 
-        // Mark all jobs in this page as processing
-        await this.markJobsAsProcessing(jobs);
 
         // Process each job
         for (const job of jobs) {
@@ -127,49 +125,31 @@ export class IngestorService {
 
   private async getPendingJobs(page: number): Promise<ProcessedFile[]> {
     const stuckTime = new Date(Date.now() - this.stuckTimeout);
+    const processedFileRepo = this.processedFileRepository;
     
-    return await this.processedFileRepository.manager.transaction(async (manager) => {
-      const processedFileRepo = manager.getRepository(ProcessedFile);
-      
-      return await processedFileRepo.find({
-        where: [
-          {
-            status: ProcessedFileStatus.PENDING,
-          },
-          {
-            status: ProcessedFileStatus.PROCESSING,
-            processedAt: LessThan(stuckTime),
-          }
-        ],
-        order: {
-          createdAt: 'ASC', // Process oldest jobs first
-        },
-        skip: page * this.pageSize,
-        take: this.pageSize,
-        lock: { mode: 'pessimistic_write' },
-      });
-    });
-  }
+    const updateResult = await processedFileRepo.query(`
+      WITH selected_jobs AS (
+        SELECT id 
+        FROM processed_file 
+        WHERE (status = $1 OR (status = $2 AND processed_at < $3))
+        ORDER BY created_at ASC
+        LIMIT $4 OFFSET $5
+      )
+      UPDATE processed_file
+      SET status = $6, processed_at = $7
+      WHERE id IN (SELECT id FROM selected_jobs)
+      RETURNING *
+    `, [
+      ProcessedFileStatus.PENDING,
+      ProcessedFileStatus.PROCESSING,
+      stuckTime,
+      this.pageSize,
+      page * this.pageSize,
+      ProcessedFileStatus.PROCESSING,
+      new Date()
+    ]);
 
-  private async markJobsAsProcessing(jobs: ProcessedFile[]): Promise<void> {
-    if (jobs.length === 0) return;
-
-    await this.processedFileRepository.manager.transaction(async (manager) => {
-      const processedFileRepo = manager.getRepository(ProcessedFile);
-      
-      await processedFileRepo.update(
-        { s3Key: In(jobs.map(job => job.s3Key)), bucket: In(jobs.map(job => job.bucket)) },
-        { 
-          status: ProcessedFileStatus.PROCESSING,
-          processedAt: new Date(),
-          updatedAt: new Date(),
-          metadata: {
-            ...jobs[0].metadata,
-            batchProcessedAt: new Date().toISOString(),
-          }
-        } as DeepPartial<ProcessedFile>
-      );
-    });
+    return updateResult;
   }
 
   async processLocalFile(filePath: string): Promise<void> {
